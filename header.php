@@ -55,7 +55,7 @@ $useSellerShell = $user && isAdmin();
     <?php else: ?>
         <header class="site-header">
             <div class="topbar">
-                <a class="brand" href="index.php">
+                <a class="brand" href="index.html">
                     <img src="assets/healthnest-logo.png" alt="HealthNest logo">
                 </a>
 
@@ -63,7 +63,7 @@ $useSellerShell = $user && isAdmin();
                     <?php if ($user): ?>
                         <a class="<?php echo $currentPage === "buyer_dashboard.php" ? "active" : ""; ?>" href="buyer_dashboard.php">Dashboard</a>
                     <?php else: ?>
-                        <a class="<?php echo $currentPage === "index.php" ? "active" : ""; ?>" href="index.php">Home</a>
+                        <a class="<?php echo $currentPage === "index.html" ? "active" : ""; ?>" href="index.html">Home</a>
                     <?php endif; ?>
                     <a class="<?php echo $currentPage === "products.php" || $currentPage === "product.php" ? "active" : ""; ?>" href="products.php">Products</a>
                     <a class="<?php echo $currentPage === "categories.php" ? "active" : ""; ?>" href="categories.php">Categories</a>
