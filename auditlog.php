@@ -4,6 +4,30 @@ require_once __DIR__ . "/init.php";
 
 requireAdmin();
 
+$auditStatsResult = mysqli_query($conn, "
+    SELECT
+        COUNT(*) AS total_logs,
+        COUNT(DISTINCT user_id) AS active_actors,
+        COUNT(DISTINCT table_affected) AS affected_tables
+    FROM audit_logs
+");
+$auditStats = mysqli_fetch_assoc($auditStatsResult);
+$totalLogs = (int) ($auditStats["total_logs"] ?? 0);
+$activeActors = (int) ($auditStats["active_actors"] ?? 0);
+$affectedTables = (int) ($auditStats["affected_tables"] ?? 0);
+$auditTableStatsResult = mysqli_query($conn, "
+    SELECT table_affected, COUNT(*) AS total
+    FROM audit_logs
+    GROUP BY table_affected
+    ORDER BY total DESC
+    LIMIT 5
+");
+$auditTableStats = [];
+if ($auditTableStatsResult) {
+    while ($tableStat = mysqli_fetch_assoc($auditTableStatsResult)) {
+        $auditTableStats[] = $tableStat;
+    }
+}
 $result = mysqli_query($conn, "
     SELECT l.log_id, l.action, l.table_affected, l.record_id, l.details, l.created_at,
            a.firstname, a.middlename, a.lastname, a.email
@@ -17,11 +41,45 @@ require __DIR__ . "/header.php";
 ?>
 
 <main class="page-main">
-    <div class="admin-bar">
+    <div class="seller-page-header">
         <div>
             <div class="eyebrow">Seller Tools</div>
             <h2>Audit Log</h2>
             <p>Review recorded seller and system actions from the audit table.</p>
+        </div>
+    </div>
+
+    <div class="analytics-grid">
+        <div class="card insight-card">
+            <span class="panel-label">Total Events</span>
+            <strong><?php echo $totalLogs; ?></strong>
+            <p>Recorded actions in the system trail.</p>
+        </div>
+        <div class="card insight-card">
+            <span class="panel-label">Actors</span>
+            <strong><?php echo $activeActors; ?></strong>
+            <p>Users connected to audit activity.</p>
+        </div>
+        <div class="card insight-card">
+            <span class="panel-label">Affected Tables</span>
+            <strong><?php echo $affectedTables; ?></strong>
+            <p>Database areas touched by actions.</p>
+        </div>
+    </div>
+
+    <div class="card chart-card audit-summary-card">
+        <h3>Most Active Tables</h3>
+        <div class="status-stack">
+            <?php if (count($auditTableStats) > 0): ?>
+                <?php foreach ($auditTableStats as $tableStat): ?>
+                    <div>
+                        <span class="badge"><?php echo e($tableStat["table_affected"] ?: "Unknown"); ?></span>
+                        <strong><?php echo (int) $tableStat["total"]; ?></strong>
+                    </div>
+                <?php endforeach; ?>
+            <?php else: ?>
+                <p class="muted">No audit activity yet.</p>
+            <?php endif; ?>
         </div>
     </div>
 
