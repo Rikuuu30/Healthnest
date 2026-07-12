@@ -28,6 +28,7 @@ $totalRevenue = (float) ($revenueRow["total"] ?? 0);
 $activeProductResult = mysqli_query($conn, "SELECT COUNT(*) AS total FROM products WHERE status = 'active'");
 $activeProductRow = mysqli_fetch_assoc($activeProductResult);
 $activeProducts = (int) ($activeProductRow["total"] ?? 0);
+$inactiveProducts = max(0, $totalProducts - $activeProducts);
 $activeCatalogPercent = $totalProducts > 0 ? round(($activeProducts / $totalProducts) * 100) : 0;
 $inventoryValueResult = mysqli_query($conn, "SELECT COALESCE(SUM(price * stock_quantity), 0) AS total FROM products");
 $inventoryValueRow = mysqli_fetch_assoc($inventoryValueResult);
@@ -36,6 +37,43 @@ $lowStockCountResult = mysqli_query($conn, "SELECT COUNT(*) AS total FROM produc
 $lowStockCountRow = mysqli_fetch_assoc($lowStockCountResult);
 $lowStockCount = (int) ($lowStockCountRow["total"] ?? 0);
 $stockRiskPercent = $totalProducts > 0 ? round(($lowStockCount / $totalProducts) * 100) : 0;
+$inventoryUnitsResult = mysqli_query($conn, "SELECT COALESCE(SUM(stock_quantity), 0) AS total FROM products");
+$inventoryUnitsRow = mysqli_fetch_assoc($inventoryUnitsResult);
+$inventoryUnits = (int) ($inventoryUnitsRow["total"] ?? 0);
+$pendingOrderResult = mysqli_query($conn, "SELECT COUNT(*) AS total FROM orders WHERE status IS NULL OR LOWER(status) NOT IN ('completed', 'paid', 'delivered', 'cancelled')");
+$pendingOrderRow = mysqli_fetch_assoc($pendingOrderResult);
+$pendingOrders = (int) ($pendingOrderRow["total"] ?? 0);
+$todayActivityResult = mysqli_query($conn, "SELECT COUNT(*) AS total FROM audit_logs WHERE created_at = CURDATE()");
+$todayActivityRow = mysqli_fetch_assoc($todayActivityResult);
+$todayActivity = (int) ($todayActivityRow["total"] ?? 0);
+$activeUserResult = mysqli_query($conn, "SELECT COUNT(*) AS total FROM tblaccount WHERE status = 'active'");
+$activeUserRow = mysqli_fetch_assoc($activeUserResult);
+$activeUsers = (int) ($activeUserRow["total"] ?? 0);
+$averageOrderValue = $totalOrders > 0 ? $totalRevenue / $totalOrders : 0;
+$inventoryValuePerUnit = $inventoryUnits > 0 ? $inventoryValue / $inventoryUnits : 0;
+$catalogScore = min(100, max(0, $activeCatalogPercent));
+$stockScore = min(100, max(0, 100 - $stockRiskPercent));
+$orderScore = $pendingOrders > 0 ? 82 : 100;
+$operationsScore = round(($catalogScore + $stockScore + $orderScore) / 3);
+$operationsLabel = $operationsScore >= 90 ? "Excellent" : ($operationsScore >= 75 ? "Healthy" : ($operationsScore >= 55 ? "Needs Focus" : "Critical"));
+
+$monthlyRevenueResult = mysqli_query($conn, "
+    SELECT DATE_FORMAT(created_at, '%b') AS month_label, COALESCE(SUM(total_amount), 0) AS total
+    FROM orders
+    WHERE created_at IS NOT NULL
+    GROUP BY YEAR(created_at), MONTH(created_at), DATE_FORMAT(created_at, '%b')
+    ORDER BY YEAR(created_at) DESC, MONTH(created_at) DESC
+    LIMIT 6
+");
+$monthlyRevenue = [];
+$maxMonthlyRevenue = 1;
+if ($monthlyRevenueResult) {
+    while ($monthRow = mysqli_fetch_assoc($monthlyRevenueResult)) {
+        $monthlyRevenue[] = $monthRow;
+        $maxMonthlyRevenue = max($maxMonthlyRevenue, (float) $monthRow["total"]);
+    }
+    $monthlyRevenue = array_reverse($monthlyRevenue);
+}
 
 $topProductsResult = mysqli_query($conn, "
     SELECT p.product_id, p.product_name, p.price, p.stock_quantity, c.category_name
@@ -93,22 +131,34 @@ require __DIR__ . "/header.php";
 ?>
 
 <main class="page-main">
-    <div class="seller-hero">
+    <div class="seller-hero seller-dashboard-hero">
         <div>
             <div class="eyebrow">Seller Workspace</div>
             <h1>Command Center</h1>
             <p class="lead">Monitor product health, revenue, and account activity from one polished HealthNest workspace.</p>
+            <div class="seller-hero-actions">
+                <a class="button" href="addproduct.php">Add Product</a>
+                <a class="button secondary" href="inventory.php">Review Inventory</a>
+            </div>
         </div>
-        <div class="seller-hero-panel">
-            <span class="panel-label">Estimated Revenue</span>
-            <strong><?php echo formatPrice($totalRevenue); ?></strong>
-            <p><?php echo $activeProducts; ?> active products &middot; <?php echo $lowStockCount; ?> need attention</p>
+        <div class="seller-health-card">
+            <span class="panel-label">Operations Health</span>
+            <div class="health-ring" style="--score: <?php echo $operationsScore; ?>;">
+                <strong><?php echo $operationsScore; ?>%</strong>
+            </div>
+            <h3><?php echo e($operationsLabel); ?></h3>
+            <p><?php echo $activeProducts; ?> active products &middot; <?php echo $pendingOrders; ?> pending order(s)</p>
         </div>
     </div>
 
     <div class="seller-command-strip">
         <div class="command-metric">
-            <span>Catalog Readiness</span>
+            <span>Inventory Value</span>
+            <strong><?php echo formatPrice($inventoryValue); ?></strong>
+            <p><?php echo $inventoryUnits; ?> units &middot; <?php echo formatPrice($inventoryValuePerUnit); ?> avg/unit</p>
+        </div>
+        <div class="command-metric">
+            <span>Active Catalog</span>
             <strong><?php echo $activeCatalogPercent; ?>%</strong>
             <div class="meter"><i style="width: <?php echo $activeCatalogPercent; ?>%;"></i></div>
         </div>
@@ -118,64 +168,56 @@ require __DIR__ . "/header.php";
             <div class="meter risk"><i style="width: <?php echo $stockRiskPercent; ?>%;"></i></div>
         </div>
         <div class="command-metric">
-            <span>Operational Focus</span>
-            <strong><?php echo $lowStockCount > 0 ? "Restock" : "Stable"; ?></strong>
-            <p><?php echo $lowStockCount > 0 ? "Prioritize low-stock items today." : "Inventory is currently in a healthy state."; ?></p>
+            <span>Next Action</span>
+            <strong><?php echo $lowStockCount > 0 ? "Restock" : ($inactiveProducts > 0 ? "Review" : "Stable"); ?></strong>
+            <p><?php echo $lowStockCount > 0 ? $lowStockCount . " product(s) need stock attention." : ($inactiveProducts > 0 ? $inactiveProducts . " inactive product(s) can be reviewed." : "Catalog is ready for buyers."); ?></p>
         </div>
     </div>
 
-    <div class="stats-grid">
-        <div class="card stat-card">
-            <span class="stat-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 8 12 4l8.5 4-8.5 4-8.5-4Z"></path><path d="M3.5 8v8L12 20l8.5-4V8"></path><path d="M12 12v8"></path></svg></span>
-            <p class="stat-label">Total Products</p>
-            <div class="stat-value"><?php echo $totalProducts; ?></div>
-            <p class="muted"><?php echo $lowStockCount; ?> low-stock item(s)</p>
-            <a href="inventory.php">View inventory</a>
-        </div>
+    <div class="seller-analysis-grid">
+        <section class="card inventory-value-card">
+            <span class="panel-label">Inventory & Status</span>
+            <div class="inventory-value-main">
+                <strong><?php echo formatPrice($inventoryValue); ?></strong>
+                <p>Total stock value from <?php echo $inventoryUnits; ?> available unit(s).</p>
+            </div>
+            <div class="inventory-status-row">
+                <div>
+                    <span>Active</span>
+                    <strong><?php echo $activeProducts; ?></strong>
+                </div>
+                <div>
+                    <span>Inactive</span>
+                    <strong><?php echo $inactiveProducts; ?></strong>
+                </div>
+                <div class="<?php echo $lowStockCount > 0 ? "needs-attention" : ""; ?>">
+                    <span>Low Stock</span>
+                    <strong><?php echo $lowStockCount; ?></strong>
+                </div>
+            </div>
+            <div class="status-meter">
+                <span style="width: <?php echo $activeCatalogPercent; ?>%;"></span>
+            </div>
+            <p class="muted"><?php echo $activeCatalogPercent; ?>% of catalog is active and visible to buyers.</p>
+        </section>
 
-        <div class="card stat-card">
-            <span class="stat-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8.5" r="3.25"></circle><path d="M3.5 19c0-3.2 2.6-5.5 5.5-5.5s5.5 2.3 5.5 5.5"></path><path d="M15.5 6.2c1.4.3 2.5 1.6 2.5 3.1s-1.1 2.8-2.5 3.1"></path><path d="M17 13.6c2 .5 3.5 2.4 3.5 4.6"></path></svg></span>
-            <p class="stat-label">Registered Users</p>
-            <div class="stat-value"><?php echo $totalUsers; ?></div>
-            <p class="muted">Buyer and seller accounts</p>
-            <a href="manageusers.php">Manage users</a>
-        </div>
-
-        <div class="card stat-card">
-            <span class="stat-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h2l1.8 10.6a2 2 0 0 0 2 1.7h7a2 2 0 0 0 2-1.6L20 9H6.3"></path><circle cx="9.5" cy="20" r="1.2"></circle><circle cx="17" cy="20" r="1.2"></circle></svg></span>
-            <p class="stat-label">Orders</p>
-            <div class="stat-value"><?php echo $totalOrders; ?></div>
-            <p class="muted">Simulated checkout records</p>
-            <a href="auditlog.php">Review activity</a>
-        </div>
-
-        <div class="card stat-card">
-            <span class="stat-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="3.5" width="14" height="17" rx="2"></rect><path d="M9 3.5v2.5h6V3.5"></path><path d="M8.5 11.5h7M8.5 15h7M8.5 8.5h3.5"></path></svg></span>
-            <p class="stat-label">Audit Logs</p>
-            <div class="stat-value"><?php echo $totalLogs; ?></div>
-            <p class="muted">Tracked seller actions</p>
-            <a href="auditlog.php">View audit log</a>
-        </div>
-    </div>
-
-    <div class="analytics-grid">
-        <div class="card insight-card">
-            <span class="panel-label">Inventory Value</span>
-            <strong><?php echo formatPrice($inventoryValue); ?></strong>
-            <p>Estimated catalog value based on current stock and product prices.</p>
-        </div>
-
-        <div class="card insight-card">
-            <span class="panel-label">Active Catalog</span>
-            <strong><?php echo $activeProducts; ?> / <?php echo $totalProducts; ?></strong>
-            <p>Products currently visible to buyers.</p>
-        </div>
-
-        <div class="card insight-card warning">
-            <span class="panel-label">Stock Watch</span>
-            <strong><?php echo $lowStockCount; ?></strong>
-            <p>Items at or below the low-stock threshold.</p>
-        </div>
+        <section class="card seller-priority-card">
+            <span class="panel-label">Seller Priorities</span>
+            <ul class="priority-list">
+                <li>
+                    <strong><?php echo $lowStockCount > 0 ? "Restock low inventory" : "Inventory is healthy"; ?></strong>
+                    <span><?php echo $lowStockCount > 0 ? $lowStockCount . " item(s) are at or below 10 units." : "No urgent low-stock products right now."; ?></span>
+                </li>
+                <li>
+                    <strong><?php echo $inactiveProducts > 0 ? "Review inactive products" : "Catalog visibility is strong"; ?></strong>
+                    <span><?php echo $inactiveProducts > 0 ? $inactiveProducts . " product(s) are not visible to buyers." : "All products are currently active."; ?></span>
+                </li>
+                <li>
+                    <strong><?php echo $pendingOrders > 0 ? "Check pending orders" : "Orders are clear"; ?></strong>
+                    <span><?php echo $pendingOrders > 0 ? $pendingOrders . " order(s) may need follow-up." : "No pending order action detected."; ?></span>
+                </li>
+            </ul>
+        </section>
     </div>
 
     <div class="dashboard-grid seller-dashboard-grid">
@@ -218,6 +260,25 @@ require __DIR__ . "/header.php";
         </div>
 
         <div class="content-grid">
+            <div class="card chart-card revenue-card">
+                <h3>Revenue Pulse</h3>
+                <p class="muted">Monthly order value from recent checkout records.</p>
+                <div class="revenue-bars">
+                    <?php if (count($monthlyRevenue) > 0): ?>
+                        <?php foreach ($monthlyRevenue as $monthStat): ?>
+                            <?php $barHeight = max(10, round(((float) $monthStat["total"] / $maxMonthlyRevenue) * 100)); ?>
+                            <div class="revenue-bar">
+                                <span style="height: <?php echo $barHeight; ?>%;"></span>
+                                <strong><?php echo e($monthStat["month_label"]); ?></strong>
+                                <em><?php echo formatPrice((float) $monthStat["total"]); ?></em>
+                            </div>
+                        <?php endforeach; ?>
+                    <?php else: ?>
+                        <p class="muted">No dated revenue records yet.</p>
+                    <?php endif; ?>
+                </div>
+            </div>
+
             <div class="card chart-card">
                 <h3>Category Mix</h3>
                 <p class="muted">Product count by leading category.</p>
