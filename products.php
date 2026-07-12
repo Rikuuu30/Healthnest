@@ -24,18 +24,159 @@ require __DIR__ . "/header.php";
         </div>
     </div>
 
-    <form method="get" action="products.php">
-        <label for="category">Category</label>
-        <select id="category" name="category">
-            <option value="">All Categories</option>
-            <?php foreach ($categories as $category): ?>
-                <option value="<?php echo (int) $category["category_id"]; ?>" <?php echo $categoryId === (int) $category["category_id"] ? "selected" : ""; ?>>
-                    <?php echo e($category["category_name"]); ?>
-                </option>
-            <?php endforeach; ?>
-        </select>
+    <form method="get" action="products.php" class="catalog-filter-form">
+        <label id="category-label">Category</label>
+
+        <div class="catalog-select" data-catalog-select>
+            <select id="category" name="category" aria-labelledby="category-label">
+                <option value="">All Categories</option>
+                <?php foreach ($categories as $category): ?>
+                    <option value="<?php echo (int) $category["category_id"]; ?>" <?php echo $categoryId === (int) $category["category_id"] ? "selected" : ""; ?>>
+                        <?php echo e($category["category_name"]); ?>
+                    </option>
+                <?php endforeach; ?>
+            </select>
+
+            <button class="catalog-select-trigger" type="button" aria-haspopup="listbox" aria-expanded="false" aria-labelledby="category-label catalog-select-value">
+                <span id="catalog-select-value"><?php echo e($selectedCategory["category_name"] ?? "All Categories"); ?></span>
+                <span class="catalog-select-chevron" aria-hidden="true"></span>
+            </button>
+
+            <div class="catalog-select-menu" role="listbox" aria-labelledby="category-label" hidden>
+                <button type="button" class="catalog-select-option" role="option" data-category-value="" aria-selected="<?php echo !$categoryId ? "true" : "false"; ?>">
+                    <span>All Categories</span>
+                </button>
+                <?php foreach ($categories as $category): ?>
+                    <button type="button" class="catalog-select-option" role="option" data-category-value="<?php echo (int) $category["category_id"]; ?>" aria-selected="<?php echo $categoryId === (int) $category["category_id"] ? "true" : "false"; ?>">
+                        <span><?php echo e($category["category_name"]); ?></span>
+                    </button>
+                <?php endforeach; ?>
+            </div>
+        </div>
+
         <button type="submit">Filter</button>
     </form>
+
+    <script>
+    (function () {
+        "use strict";
+
+        var picker = document.querySelector("[data-catalog-select]");
+
+        if (!picker) {
+            return;
+        }
+
+        var select = picker.querySelector("select");
+        var trigger = picker.querySelector(".catalog-select-trigger");
+        var menu = picker.querySelector(".catalog-select-menu");
+        var valueLabel = picker.querySelector("#catalog-select-value");
+        var options = Array.prototype.slice.call(picker.querySelectorAll(".catalog-select-option"));
+
+        var syncSelection = function (value) {
+            var selectedOption = options.find(function (option) {
+                return option.dataset.categoryValue === value;
+            });
+
+            if (!selectedOption) {
+                return;
+            }
+
+            select.value = value;
+            valueLabel.textContent = selectedOption.querySelector("span").textContent;
+
+            options.forEach(function (option) {
+                option.setAttribute("aria-selected", option === selectedOption ? "true" : "false");
+            });
+        };
+
+        var openMenu = function () {
+            menu.hidden = false;
+            picker.classList.add("is-open");
+            trigger.setAttribute("aria-expanded", "true");
+
+            var selectedOption = options.find(function (option) {
+                return option.getAttribute("aria-selected") === "true";
+            });
+
+            (selectedOption || options[0]).focus();
+        };
+
+        var closeMenu = function (restoreFocus) {
+            menu.hidden = true;
+            picker.classList.remove("is-open");
+            trigger.setAttribute("aria-expanded", "false");
+
+            if (restoreFocus) {
+                trigger.focus();
+            }
+        };
+
+        picker.classList.add("custom-select-ready");
+        select.tabIndex = -1;
+        select.setAttribute("aria-hidden", "true");
+        syncSelection(select.value);
+
+        trigger.addEventListener("click", function () {
+            if (menu.hidden) {
+                openMenu();
+            } else {
+                closeMenu(false);
+            }
+        });
+
+        trigger.addEventListener("keydown", function (event) {
+            if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+                event.preventDefault();
+                openMenu();
+            }
+        });
+
+        options.forEach(function (option, index) {
+            option.addEventListener("click", function () {
+                syncSelection(option.dataset.categoryValue);
+                select.dispatchEvent(new Event("change", { bubbles: true }));
+                closeMenu(true);
+            });
+
+            option.addEventListener("keydown", function (event) {
+                var nextIndex = index;
+
+                if (event.key === "ArrowDown") {
+                    nextIndex = (index + 1) % options.length;
+                } else if (event.key === "ArrowUp") {
+                    nextIndex = (index - 1 + options.length) % options.length;
+                } else if (event.key === "Home") {
+                    nextIndex = 0;
+                } else if (event.key === "End") {
+                    nextIndex = options.length - 1;
+                } else if (event.key === "Escape") {
+                    event.preventDefault();
+                    closeMenu(true);
+                    return;
+                } else if (event.key === "Tab") {
+                    closeMenu(false);
+                    return;
+                } else {
+                    return;
+                }
+
+                event.preventDefault();
+                options[nextIndex].focus();
+            });
+        });
+
+        select.addEventListener("change", function () {
+            syncSelection(select.value);
+        });
+
+        document.addEventListener("click", function (event) {
+            if (!menu.hidden && !picker.contains(event.target)) {
+                closeMenu(false);
+            }
+        });
+    }());
+    </script>
 
     <?php if ($selectedCategory): ?>
         <div class="panel">
