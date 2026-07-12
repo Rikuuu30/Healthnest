@@ -1392,8 +1392,18 @@ select:focus {
     box-shadow: 0 0 0 4px var(--accent-soft);
 }
 
+select {
+    color-scheme: dark;
+}
+
 select option {
-    color: #08111d;
+    color: #f7fbff;
+    background: #0d1a2a;
+}
+
+select option:checked {
+    color: #ffffff;
+    background: #2f8cff;
 }
 
 .table-wrap {
