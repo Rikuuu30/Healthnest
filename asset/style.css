@@ -374,14 +374,16 @@ p {
 }
 
 .quick-list,
-.plain-list {
+.plain-list,
+.feature-list {
     list-style: none;
     display: grid;
     gap: 10px;
 }
 
 .quick-list li,
-.plain-list li {
+.plain-list li,
+.feature-list li {
     padding: 12px 14px;
     border-radius: var(--radius);
     background: rgba(245, 249, 252, 0.88);
@@ -901,6 +903,21 @@ body.auth-page .site-footer {
     text-align: center;
 }
 
+.footer-inner {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    max-width: var(--page-max, 1200px);
+    margin: 0 auto;
+}
+
+.footer-inner strong {
+    color: #ffffff;
+    font-size: 15px;
+    letter-spacing: 0.3px;
+}
+
 .site-footer p {
     margin: 0;
     color: #a9c9dc;
@@ -1237,6 +1254,7 @@ p,
 
 .quick-list li,
 .plain-list li,
+.feature-list li,
 .empty-state {
     background: rgba(255, 255, 255, 0.045);
     border: 1px solid var(--line);
@@ -2988,6 +3006,32 @@ body.auth-page .auth-card .role-select-option[aria-selected="true"] {
     align-items: start;
 }
 
+.seller-assist-panel {
+    display: grid;
+    gap: 20px;
+}
+
+.preview-card .panel-label {
+    display: block;
+    margin-bottom: 8px;
+}
+
+.preview-card h3 {
+    margin-bottom: 8px;
+}
+
+.preview-card p {
+    margin-bottom: 10px;
+}
+
+.preview-card .price {
+    margin-bottom: 10px;
+}
+
+.checklist-card h3 {
+    margin-bottom: 14px;
+}
+
 .seller-page .form-grid {
     gap: 16px;
 }
@@ -3962,10 +4006,6 @@ body.seller-page {
 
 .seller-page .seller-dashboard-grid {
     margin-top: 4px;
-}
-
-.seller-page .content-grid > .card:last-child {
-    display: none;
 }
 
 @media (max-width: 1120px) {
