@@ -5,6 +5,21 @@ require_once __DIR__ . "/init.php";
 requireAdmin();
 
 $message = "";
+$userStatsResult = mysqli_query($conn, "
+    SELECT
+        COUNT(*) AS total_users,
+        SUM(CASE WHEN status = 'active' THEN 1 ELSE 0 END) AS active_users,
+        SUM(CASE WHEN status <> 'active' THEN 1 ELSE 0 END) AS inactive_users,
+        SUM(CASE WHEN level = 'seller' THEN 1 ELSE 0 END) AS seller_users,
+        SUM(CASE WHEN level = 'buyer' THEN 1 ELSE 0 END) AS buyer_users
+    FROM tblaccount
+");
+$userStats = mysqli_fetch_assoc($userStatsResult);
+$totalUsers = (int) ($userStats["total_users"] ?? 0);
+$activeUsers = (int) ($userStats["active_users"] ?? 0);
+$inactiveUsers = (int) ($userStats["inactive_users"] ?? 0);
+$sellerUsers = (int) ($userStats["seller_users"] ?? 0);
+$buyerUsers = (int) ($userStats["buyer_users"] ?? 0);
 $editUserId = filter_input(INPUT_GET, "edit", FILTER_VALIDATE_INT);
 $disableUserId = filter_input(INPUT_GET, "delete", FILTER_VALIDATE_INT);
 
@@ -139,11 +154,29 @@ require __DIR__ . "/header.php";
 ?>
 
 <main class="page-main">
-    <div class="admin-bar">
+    <div class="seller-page-header">
         <div>
             <div class="eyebrow">Seller Tools</div>
             <h2>Manage Users</h2>
-            <p>Create buyer or seller accounts and update their status.</p>
+            <p>Create buyer or seller accounts, update access, and keep account status easy to review.</p>
+        </div>
+    </div>
+
+    <div class="analytics-grid">
+        <div class="card insight-card">
+            <span class="panel-label">Total Accounts</span>
+            <strong><?php echo $totalUsers; ?></strong>
+            <p><?php echo $buyerUsers; ?> buyers · <?php echo $sellerUsers; ?> sellers</p>
+        </div>
+        <div class="card insight-card">
+            <span class="panel-label">Active</span>
+            <strong><?php echo $activeUsers; ?></strong>
+            <p>Accounts currently allowed to use the system.</p>
+        </div>
+        <div class="card insight-card warning">
+            <span class="panel-label">Inactive / Disabled</span>
+            <strong><?php echo $inactiveUsers; ?></strong>
+            <p>Accounts requiring review or reactivation.</p>
         </div>
     </div>
 
@@ -151,7 +184,7 @@ require __DIR__ . "/header.php";
         <div class="error"><?php echo e($message); ?></div>
     <?php endif; ?>
 
-    <form method="post" action="manageusers.php<?php echo $editMode ? "?edit=" . (int) $editUser["id"] : ""; ?>">
+    <form class="seller-form" method="post" action="manageusers.php<?php echo $editMode ? "?edit=" . (int) $editUser["id"] : ""; ?>">
         <?php echo csrfField(); ?>
         <h3><?php echo $editMode ? "Edit User" : "Add User"; ?></h3>
 
@@ -159,47 +192,71 @@ require __DIR__ . "/header.php";
             <input type="hidden" name="user_id" value="<?php echo (int) $editUser["id"]; ?>">
         <?php endif; ?>
 
-        <label for="firstname">First Name</label><br>
-        <input id="firstname" type="text" name="firstname" value="<?php echo e($editUser["firstname"]); ?>" required><br><br>
+        <div class="form-grid">
+            <div>
+                <label for="firstname">First Name</label>
+                <input id="firstname" type="text" name="firstname" value="<?php echo e($editUser["firstname"]); ?>" required>
+            </div>
 
-        <label for="middlename">Middle Name</label><br>
-        <input id="middlename" type="text" name="middlename" value="<?php echo e($editUser["middlename"]); ?>"><br><br>
+            <div>
+                <label for="middlename">Middle Name</label>
+                <input id="middlename" type="text" name="middlename" value="<?php echo e($editUser["middlename"]); ?>">
+            </div>
 
-        <label for="lastname">Last Name</label><br>
-        <input id="lastname" type="text" name="lastname" value="<?php echo e($editUser["lastname"]); ?>" required><br><br>
+            <div>
+                <label for="lastname">Last Name</label>
+                <input id="lastname" type="text" name="lastname" value="<?php echo e($editUser["lastname"]); ?>" required>
+            </div>
 
-        <label for="email">Email</label><br>
-        <input id="email" type="email" name="email" value="<?php echo e($editUser["email"]); ?>" required><br><br>
+            <div>
+                <label for="email">Email</label>
+                <input id="email" type="email" name="email" value="<?php echo e($editUser["email"]); ?>" required>
+            </div>
 
-        <label for="contact">Contact</label><br>
-        <input id="contact" type="text" name="contact" value="<?php echo e($editUser["contact"]); ?>"><br><br>
+            <div>
+                <label for="contact">Contact</label>
+                <input id="contact" type="text" name="contact" value="<?php echo e($editUser["contact"]); ?>">
+            </div>
 
-        <label for="address">Address</label><br>
-        <textarea id="address" name="address"><?php echo e($editUser["address"]); ?></textarea><br><br>
+            <div>
+                <label for="birthdate">Birth Date</label>
+                <input id="birthdate" type="date" name="birthdate" value="<?php echo e($editUser["birthdate"]); ?>">
+            </div>
 
-        <label for="birthdate">Birth Date</label><br>
-        <input id="birthdate" type="date" name="birthdate" value="<?php echo e($editUser["birthdate"]); ?>"><br><br>
+            <div>
+                <label for="level">Account Level</label>
+                <select id="level" name="level" required>
+                    <option value="buyer" <?php echo accountLevelValue($editUser["level"]) === "buyer" ? "selected" : ""; ?>>Buyer</option>
+                    <option value="seller" <?php echo accountLevelValue($editUser["level"]) === "seller" ? "selected" : ""; ?>>Seller</option>
+                </select>
+            </div>
 
-        <label for="level">Account Level</label><br>
-        <select id="level" name="level" required>
-            <option value="buyer" <?php echo accountLevelValue($editUser["level"]) === "buyer" ? "selected" : ""; ?>>Buyer</option>
-            <option value="seller" <?php echo accountLevelValue($editUser["level"]) === "seller" ? "selected" : ""; ?>>Seller</option>
-        </select><br><br>
+            <div>
+                <label for="status">Status</label>
+                <select id="status" name="status" required>
+                    <option value="active" <?php echo $editUser["status"] === "active" ? "selected" : ""; ?>>Active</option>
+                    <option value="inactive" <?php echo $editUser["status"] === "inactive" ? "selected" : ""; ?>>Inactive</option>
+                    <option value="disabled" <?php echo $editUser["status"] === "disabled" ? "selected" : ""; ?>>Disabled</option>
+                </select>
+            </div>
 
-        <label for="status">Status</label><br>
-        <select id="status" name="status" required>
-            <option value="active" <?php echo $editUser["status"] === "active" ? "selected" : ""; ?>>Active</option>
-            <option value="inactive" <?php echo $editUser["status"] === "inactive" ? "selected" : ""; ?>>Inactive</option>
-            <option value="disabled" <?php echo $editUser["status"] === "disabled" ? "selected" : ""; ?>>Disabled</option>
-        </select><br><br>
+            <div class="full">
+                <label for="address">Address</label>
+                <textarea id="address" name="address"><?php echo e($editUser["address"]); ?></textarea>
+            </div>
 
-        <label for="password"><?php echo $editMode ? "New Password (optional)" : "Password"; ?></label><br>
-        <input id="password" type="password" name="password" <?php echo $editMode ? "" : "required"; ?> minlength="8"><br><br>
+            <div class="full">
+                <label for="password"><?php echo $editMode ? "New Password (optional)" : "Password"; ?></label>
+                <input id="password" type="password" name="password" <?php echo $editMode ? "" : "required"; ?> minlength="8">
+            </div>
+        </div>
 
-        <button type="submit">Save User</button>
-        <?php if ($editMode): ?>
-            <a href="manageusers.php">Cancel Edit</a>
-        <?php endif; ?>
+        <div class="form-actions">
+            <button type="submit">Save User</button>
+            <?php if ($editMode): ?>
+                <a href="manageusers.php">Cancel Edit</a>
+            <?php endif; ?>
+        </div>
     </form>
 
     <div class="table-card">
