@@ -6,6 +6,38 @@ requireAdmin();
 
 $message = "";
 $categories = getCategories($conn);
+$categoryInsightResult = mysqli_query($conn, "
+    SELECT c.category_id, c.category_name,
+           COUNT(p.product_id) AS product_count,
+           COALESCE(AVG(p.price), 0) AS average_price,
+           COALESCE(MIN(NULLIF(p.price, 0)), 0) AS min_price,
+           COALESCE(MAX(p.price), 0) AS max_price,
+           COALESCE(SUM(CASE WHEN p.stock_quantity <= 10 THEN 1 ELSE 0 END), 0) AS low_stock_count
+    FROM categories c
+    LEFT JOIN products p ON c.category_id = p.category_id
+    GROUP BY c.category_id, c.category_name
+    ORDER BY c.category_name ASC
+");
+$categoryInsights = [];
+if ($categoryInsightResult) {
+    while ($insightRow = mysqli_fetch_assoc($categoryInsightResult)) {
+        $categoryInsights[(int) $insightRow["category_id"]] = [
+            "name" => $insightRow["category_name"],
+            "product_count" => (int) $insightRow["product_count"],
+            "average_price" => (float) $insightRow["average_price"],
+            "min_price" => (float) $insightRow["min_price"],
+            "max_price" => (float) $insightRow["max_price"],
+            "low_stock_count" => (int) $insightRow["low_stock_count"],
+        ];
+    }
+}
+$existingNamesResult = mysqli_query($conn, "SELECT product_name FROM products ORDER BY product_name ASC");
+$existingProductNames = [];
+if ($existingNamesResult) {
+    while ($nameRow = mysqli_fetch_assoc($existingNamesResult)) {
+        $existingProductNames[] = strtolower(trim((string) $nameRow["product_name"]));
+    }
+}
 $values = [
     "product_name" => "",
     "category_id" => "",
@@ -83,7 +115,10 @@ require __DIR__ . "/header.php";
     <div class="seller-form-layout">
         <form class="seller-form" method="post" action="addproduct.php">
             <?php echo csrfField(); ?>
-            <h3>Product Information</h3>
+            <div class="seller-form-heading">
+                <span class="panel-label">Product Setup</span>
+                <h3>Product Information</h3>
+            </div>
 
             <div class="form-grid">
                 <div class="full">
@@ -136,25 +171,226 @@ require __DIR__ . "/header.php";
         </form>
 
         <aside class="seller-assist-panel">
-            <div class="card preview-card">
-                <span class="panel-label">Catalog Preview</span>
-                <h3><?php echo e($values["product_name"] !== "" ? $values["product_name"] : "New Product"); ?></h3>
-                <p><?php echo e($values["description"] !== "" ? $values["description"] : "Add a clear benefit-driven description to help buyers understand this item."); ?></p>
-                <p class="price"><?php echo is_numeric($values["price"]) && (float) $values["price"] > 0 ? formatPrice((float) $values["price"]) : "Set price"; ?></p>
-                <span class="status <?php echo e($values["status"]); ?>"><?php echo e(ucfirst($values["status"])); ?></span>
+            <div class="card listing-readiness-card">
+                <span class="panel-label">Listing Readiness</span>
+                <div class="readiness-score">
+                    <strong id="listingScore">0%</strong>
+                    <div class="status-meter"><span id="listingScoreBar" style="width: 0%;"></span></div>
+                </div>
+                <ul class="readiness-list">
+                    <li id="checkName">Product name added</li>
+                    <li id="checkCategory">Category selected</li>
+                    <li id="checkPrice">Valid price entered</li>
+                    <li id="checkStock">Opening stock set</li>
+                    <li id="checkDescription">Buyer description written</li>
+                </ul>
+                <p id="duplicateNameNotice" class="assist-warning" hidden>A product with this name already exists.</p>
             </div>
 
-            <div class="card checklist-card">
-                <h3>Listing Checklist</h3>
-                <ul class="feature-list">
-                    <li>Use a short, searchable product name.</li>
-                    <li>Choose the most accurate wellness category.</li>
-                    <li>Keep stock updated to avoid checkout issues.</li>
-                    <li>Set inactive if the product is not ready for buyers.</li>
-                </ul>
+            <div class="card catalog-intel-card">
+                <span class="panel-label">Listing Planner</span>
+                <h3 id="selectedCategoryName">Select a category</h3>
+                <div class="intel-grid">
+                    <div>
+                        <span>Products</span>
+                        <strong id="categoryProductCount">-</strong>
+                    </div>
+                    <div>
+                        <span>Avg Price</span>
+                        <strong id="categoryAveragePrice">-</strong>
+                    </div>
+                    <div>
+                        <span>Range</span>
+                        <strong id="categoryPriceRange">-</strong>
+                    </div>
+                    <div>
+                        <span>Low Stock</span>
+                        <strong id="categoryLowStock">-</strong>
+                    </div>
+                </div>
+                <p id="priceGuidance" class="muted">Choose a category to compare the new product price with your catalog.</p>
+                <div class="planner-actions">
+                    <button id="useCategoryAveragePrice" type="button">Use Avg Price</button>
+                    <button id="setStarterStock" type="button">Set 30 Stock</button>
+                </div>
+                <div class="planner-divider"></div>
+                <h3>Ready-to-List Signals</h3>
+                <div class="launch-metrics">
+                    <div>
+                        <span>Opening Value</span>
+                        <strong id="openingStockValue">-</strong>
+                    </div>
+                    <div>
+                        <span>Image</span>
+                        <strong id="imageReadiness">Placeholder</strong>
+                    </div>
+                </div>
+                <p id="launchStatusAdvice" class="muted">Complete the required fields to get a visibility recommendation.</p>
+                <div class="summary-action-row">
+                    <button id="applyRecommendedStatus" type="button">Apply Recommendation</button>
+                </div>
+                <p class="muted"><span id="descriptionCount">0</span> characters in description.</p>
             </div>
         </aside>
     </div>
 </main>
+
+<script>
+const categoryInsights = <?php echo json_encode($categoryInsights, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT); ?>;
+const existingProductNames = <?php echo json_encode($existingProductNames, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT); ?>;
+const moneyFormatter = new Intl.NumberFormat("en-PH", { style: "currency", currency: "PHP" });
+
+const productNameInput = document.getElementById("product_name");
+const categoryInput = document.getElementById("category_id");
+const priceInput = document.getElementById("price");
+const stockInput = document.getElementById("stock_quantity");
+const imageInput = document.getElementById("image");
+const statusInput = document.getElementById("status");
+const descriptionInput = document.getElementById("description");
+const scoreText = document.getElementById("listingScore");
+const scoreBar = document.getElementById("listingScoreBar");
+const duplicateNotice = document.getElementById("duplicateNameNotice");
+const descriptionCount = document.getElementById("descriptionCount");
+const openingStockValue = document.getElementById("openingStockValue");
+const imageReadiness = document.getElementById("imageReadiness");
+const launchStatusAdvice = document.getElementById("launchStatusAdvice");
+const applyRecommendedStatus = document.getElementById("applyRecommendedStatus");
+const useCategoryAveragePrice = document.getElementById("useCategoryAveragePrice");
+const setStarterStock = document.getElementById("setStarterStock");
+let recommendedStatus = "inactive";
+
+const checks = {
+    name: document.getElementById("checkName"),
+    category: document.getElementById("checkCategory"),
+    price: document.getElementById("checkPrice"),
+    stock: document.getElementById("checkStock"),
+    description: document.getElementById("checkDescription"),
+};
+
+function setCheck(element, isReady) {
+    if (!element) {
+        return;
+    }
+
+    element.classList.toggle("is-ready", isReady);
+}
+
+function updateReadiness() {
+    const name = productNameInput.value.trim();
+    const selectedCategory = categoryInput.value !== "";
+    const price = Number(priceInput.value);
+    const stock = Number(stockInput.value);
+    const description = descriptionInput.value.trim();
+
+    const states = [
+        name.length >= 3,
+        selectedCategory,
+        Number.isFinite(price) && price > 0,
+        stockInput.value.trim() !== "" && Number.isInteger(stock) && stock >= 0,
+        description.length >= 30,
+    ];
+
+    setCheck(checks.name, states[0]);
+    setCheck(checks.category, states[1]);
+    setCheck(checks.price, states[2]);
+    setCheck(checks.stock, states[3]);
+    setCheck(checks.description, states[4]);
+
+    const score = Math.round((states.filter(Boolean).length / states.length) * 100);
+    scoreText.textContent = `${score}%`;
+    scoreBar.style.width = `${score}%`;
+    descriptionCount.textContent = description.length;
+
+    duplicateNotice.hidden = !existingProductNames.includes(name.toLowerCase());
+    updateLaunchPlanner(score, price, stock);
+}
+
+function updateLaunchPlanner(score, price, stock) {
+    const hasValidInventoryValue = Number.isFinite(price) && price > 0 && Number.isInteger(stock) && stock >= 0 && stockInput.value.trim() !== "";
+    openingStockValue.textContent = hasValidInventoryValue ? moneyFormatter.format(price * stock) : "-";
+
+    const imageName = imageInput.value.trim();
+    const usesPlaceholder = imageName === "" || imageName.toLowerCase() === "placeholder.jpg";
+    imageReadiness.textContent = usesPlaceholder ? "Placeholder" : "Custom";
+
+    recommendedStatus = score >= 80 && !usesPlaceholder ? "active" : "inactive";
+
+    if (recommendedStatus === "active") {
+        launchStatusAdvice.textContent = "This product looks ready to list as active.";
+    } else if (score >= 80) {
+        launchStatusAdvice.textContent = "Details look strong. Add a custom image before making it active.";
+    } else {
+        launchStatusAdvice.textContent = "Keep this inactive until the listing readiness score improves.";
+    }
+}
+
+function updateCategoryIntel() {
+    const categoryId = categoryInput.value;
+    const insight = categoryInsights[categoryId];
+    const price = Number(priceInput.value);
+
+    document.getElementById("selectedCategoryName").textContent = insight ? insight.name : "Select a category";
+    document.getElementById("categoryProductCount").textContent = insight ? insight.product_count : "-";
+    document.getElementById("categoryAveragePrice").textContent = insight ? moneyFormatter.format(insight.average_price) : "-";
+    document.getElementById("categoryPriceRange").textContent = insight && insight.max_price > 0 ? `${moneyFormatter.format(insight.min_price)} - ${moneyFormatter.format(insight.max_price)}` : "-";
+    document.getElementById("categoryLowStock").textContent = insight ? insight.low_stock_count : "-";
+
+    const guidance = document.getElementById("priceGuidance");
+    if (!insight || !Number.isFinite(price) || price <= 0 || insight.average_price <= 0) {
+        guidance.textContent = "Choose a category to compare the new product price with your catalog.";
+        return;
+    }
+
+    const difference = Math.round(((price - insight.average_price) / insight.average_price) * 100);
+    if (Math.abs(difference) <= 10) {
+        guidance.textContent = "This price is close to the category average.";
+    } else if (difference > 10) {
+        guidance.textContent = `This price is ${difference}% above the category average.`;
+    } else {
+        guidance.textContent = `This price is ${Math.abs(difference)}% below the category average.`;
+    }
+}
+
+[productNameInput, categoryInput, priceInput, stockInput, imageInput, descriptionInput].forEach((input) => {
+    input.addEventListener("input", () => {
+        updateReadiness();
+        updateCategoryIntel();
+    });
+    input.addEventListener("change", () => {
+        updateReadiness();
+        updateCategoryIntel();
+    });
+});
+
+if (applyRecommendedStatus) {
+    applyRecommendedStatus.addEventListener("click", () => {
+        statusInput.value = recommendedStatus;
+        updateReadiness();
+        updateCategoryIntel();
+    });
+}
+
+if (useCategoryAveragePrice) {
+    useCategoryAveragePrice.addEventListener("click", () => {
+        const insight = categoryInsights[categoryInput.value];
+        if (insight && insight.average_price > 0) {
+            priceInput.value = insight.average_price.toFixed(2);
+            updateReadiness();
+            updateCategoryIntel();
+        }
+    });
+}
+
+if (setStarterStock) {
+    setStarterStock.addEventListener("click", () => {
+        stockInput.value = "30";
+        updateReadiness();
+        updateCategoryIntel();
+    });
+}
+
+updateReadiness();
+updateCategoryIntel();
+</script>
 
 <?php require __DIR__ . "/footer.php"; ?>
