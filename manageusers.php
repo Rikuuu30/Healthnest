@@ -184,9 +184,12 @@ require __DIR__ . "/header.php";
         <div class="error"><?php echo e($message); ?></div>
     <?php endif; ?>
 
-    <form class="seller-form" method="post" action="manageusers.php<?php echo $editMode ? "?edit=" . (int) $editUser["id"] : ""; ?>">
+    <form class="seller-form manage-user-form" method="post" action="manageusers.php<?php echo $editMode ? "?edit=" . (int) $editUser["id"] : ""; ?>">
         <?php echo csrfField(); ?>
-        <h3><?php echo $editMode ? "Edit User" : "Add User"; ?></h3>
+        <div class="seller-form-heading">
+            <span class="panel-label">Account Editor</span>
+            <h3><?php echo $editMode ? "Edit User" : "Add User"; ?></h3>
+        </div>
 
         <?php if ($editMode): ?>
             <input type="hidden" name="user_id" value="<?php echo (int) $editUser["id"]; ?>">
@@ -259,42 +262,151 @@ require __DIR__ . "/header.php";
         </div>
     </form>
 
-    <div class="table-card">
-        <h3>Account List</h3>
+    <div class="table-card account-list-card">
+        <div class="table-card-header">
+            <div>
+                <span class="panel-label">Access Directory</span>
+                <h3>Account List</h3>
+                <p class="filter-count"><span id="accountVisibleCount"><?php echo $totalUsers; ?></span> of <?php echo $totalUsers; ?> account<?php echo $totalUsers === 1 ? "" : "s"; ?> shown.</p>
+            </div>
+            <div class="table-tools account-table-tools">
+                <div class="table-tools-head">
+                    <label for="accountPageSearch">Search accounts</label>
+                    <button id="clearAccountSearch" type="button" class="icon-text-button">Clear</button>
+                </div>
+                <input id="accountPageSearch" type="search" placeholder="Name or email" autocomplete="off">
+                <div class="segmented-filters" aria-label="Account filters">
+                    <button type="button" class="active" data-account-filter="all">All</button>
+                    <button type="button" data-account-filter="seller">Sellers</button>
+                    <button type="button" data-account-filter="buyer">Buyers</button>
+                    <button type="button" data-account-filter="inactive">Needs Review</button>
+                </div>
+            </div>
+        </div>
         <div class="table-wrap">
-            <table border="1" cellpadding="8" cellspacing="0">
-                <tr>
-                    <th>ID</th>
-                    <th>Name</th>
-                    <th>Email</th>
-                    <th>Level</th>
-                    <th>Status</th>
-                    <th>Action</th>
-                </tr>
+            <table class="account-table" border="1" cellpadding="8" cellspacing="0">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Name</th>
+                        <th>Email</th>
+                        <th>Level</th>
+                        <th>Status</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody>
                 <?php if ($usersResult && mysqli_num_rows($usersResult) > 0): ?>
                     <?php while ($row = mysqli_fetch_assoc($usersResult)): ?>
-                        <tr>
-                            <td><?php echo (int) $row["id"]; ?></td>
-                            <td><strong><?php echo e(accountFullName($row)); ?></strong></td>
-                            <td><?php echo e($row["email"]); ?></td>
-                            <td><span class="badge"><?php echo e(accountLevelLabel($row["level"])); ?></span></td>
-                            <td><span class="status <?php echo e(strtolower($row["status"])); ?>"><?php echo e(ucfirst($row["status"])); ?></span></td>
+                        <?php
+                        $fullName = accountFullName($row);
+                        $nameParts = array_values(array_filter(preg_split('/\s+/', trim($fullName))));
+                        $initials = "U";
+                        if (!empty($nameParts)) {
+                            $initials = mb_strtoupper(mb_substr($nameParts[0], 0, 1));
+                            if (count($nameParts) > 1) {
+                                $initials .= mb_strtoupper(mb_substr($nameParts[count($nameParts) - 1], 0, 1));
+                            }
+                        }
+                        $levelValue = accountLevelValue($row["level"]);
+                        $statusValue = strtolower($row["status"]);
+                        ?>
+                        <tr class="account-row" data-table-row data-level="<?php echo e($levelValue); ?>" data-status="<?php echo e($statusValue); ?>">
+                            <td class="id-cell">#<?php echo (int) $row["id"]; ?></td>
                             <td>
+                                <div class="account-name-cell">
+                                    <span class="account-avatar"><?php echo e($initials); ?></span>
+                                    <div>
+                                        <strong><?php echo e($fullName); ?></strong>
+                                        <?php if ((int) $row["id"] === sessionUserId()): ?>
+                                            <span class="self-account-pill">You</span>
+                                        <?php endif; ?>
+                                    </div>
+                                </div>
+                            </td>
+                            <td class="account-email-cell"><a href="mailto:<?php echo e($row["email"]); ?>"><?php echo e($row["email"]); ?></a></td>
+                            <td class="account-level-cell"><span class="badge"><?php echo e(accountLevelLabel($row["level"])); ?></span></td>
+                            <td class="account-status-cell"><span class="status <?php echo e($statusValue); ?>"><?php echo e(ucfirst($row["status"])); ?></span></td>
+                            <td class="table-action-cell">
                                 <a href="manageusers.php?edit=<?php echo (int) $row["id"]; ?>">Edit</a>
                                 <?php if ((int) $row["id"] !== sessionUserId()): ?>
-                                    <a href="manageusers.php?delete=<?php echo (int) $row["id"]; ?>">Disable</a>
+                                    <a class="danger-link" data-confirm-disable href="manageusers.php?delete=<?php echo (int) $row["id"]; ?>">Disable</a>
                                 <?php endif; ?>
                             </td>
                         </tr>
                     <?php endwhile; ?>
                 <?php else: ?>
-                    <tr>
+                    <tr class="empty-table-row">
                         <td colspan="6">No users found.</td>
                     </tr>
                 <?php endif; ?>
+                </tbody>
             </table>
+            <p id="accountPageEmpty" class="muted table-empty-note" hidden>No accounts match your current table filters.</p>
         </div>
     </div>
 </main>
+
+<script>
+const accountSearch = document.getElementById("accountPageSearch");
+const clearAccountSearch = document.getElementById("clearAccountSearch");
+const accountRows = Array.from(document.querySelectorAll(".account-row"));
+const accountVisibleCount = document.getElementById("accountVisibleCount");
+const accountEmpty = document.getElementById("accountPageEmpty");
+const accountFilterButtons = Array.from(document.querySelectorAll("[data-account-filter]"));
+let activeAccountFilter = "all";
+
+function applyAccountTableFilters() {
+    const query = accountSearch ? accountSearch.value.trim().toLowerCase() : "";
+    let visible = 0;
+
+    accountRows.forEach((row) => {
+        const matchesSearch = row.textContent.toLowerCase().includes(query);
+        const matchesFilter = activeAccountFilter === "all"
+            || row.dataset.level === activeAccountFilter
+            || (activeAccountFilter === "inactive" && row.dataset.status !== "active");
+        const isVisible = matchesSearch && matchesFilter;
+        row.hidden = !isVisible;
+        visible += isVisible ? 1 : 0;
+    });
+
+    if (accountVisibleCount) {
+        accountVisibleCount.textContent = visible;
+    }
+    if (accountEmpty) {
+        accountEmpty.hidden = visible !== 0;
+    }
+}
+
+if (accountSearch) {
+    accountSearch.addEventListener("input", applyAccountTableFilters);
+}
+
+if (clearAccountSearch && accountSearch) {
+    clearAccountSearch.addEventListener("click", () => {
+        accountSearch.value = "";
+        applyAccountTableFilters();
+        accountSearch.focus();
+    });
+}
+
+accountFilterButtons.forEach((button) => {
+    button.addEventListener("click", () => {
+        activeAccountFilter = button.dataset.accountFilter;
+        accountFilterButtons.forEach((item) => item.classList.toggle("active", item === button));
+        applyAccountTableFilters();
+    });
+});
+
+document.querySelectorAll("[data-confirm-disable]").forEach((link) => {
+    link.addEventListener("click", (event) => {
+        if (!confirm("Set this account to inactive?")) {
+            event.preventDefault();
+        }
+    });
+});
+
+applyAccountTableFilters();
+</script>
 
 <?php require __DIR__ . "/footer.php"; ?>
