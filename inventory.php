@@ -248,18 +248,9 @@ require __DIR__ . "/header.php";
                 <div class="catalog-title-block">
                 <span class="panel-label">Catalog Control</span>
                 <h3>Inventory List</h3>
-                <p class="filter-count"><span id="inventoryVisibleCount"><?php echo $matchingTotal; ?></span> of <?php echo $matchingTotal; ?> product<?php echo $matchingTotal === 1 ? "" : "s"; ?> shown.</p>
+                <p class="filter-count"><?php echo $matchingTotal; ?> product<?php echo $matchingTotal === 1 ? "" : "s"; ?> match your current filters.</p>
                 </div>
-                <div class="table-tools">
-                    <div class="table-tools-head">
-                        <label for="inventoryPageSearch">Search this page</label>
-                        <label class="inline-filter compact-toggle"><input id="inventoryCompactToggle" type="checkbox"> Compact rows</label>
-                    </div>
-                    <div class="table-search-row">
-                        <input id="inventoryPageSearch" type="search" placeholder="Filter visible rows" autocomplete="off">
-                        <button id="clearInventoryPageSearch" type="button" class="icon-text-button">Clear</button>
-                    </div>
-                </div>
+                <label class="inline-filter compact-toggle"><input id="inventoryCompactToggle" type="checkbox"> Compact rows</label>
             </div>
             <div class="quick-filter-row">
                 <a class="<?php echo $stockFilter === "" && $statusFilter === "" ? "active" : ""; ?>" href="inventory.php">All</a>
@@ -313,8 +304,10 @@ require __DIR__ . "/header.php";
                             </td>
                             <td class="inventory-status-cell"><span class="status <?php echo e(strtolower($row["status"])); ?>"><?php echo e(ucfirst($row["status"])); ?></span></td>
                             <td class="table-action-cell">
-                                <a href="editproduct.php?id=<?php echo (int) $row["product_id"]; ?>">Edit</a>
-                                <a class="danger-link" data-confirm-delete href="deleteproduct.php?id=<?php echo (int) $row["product_id"]; ?>">Delete</a>
+                                <div class="inventory-action-group">
+                                    <a class="inventory-action edit-action" href="editproduct.php?id=<?php echo (int) $row["product_id"]; ?>">Edit</a>
+                                    <a class="inventory-action delete-action" data-confirm-delete href="deleteproduct.php?id=<?php echo (int) $row["product_id"]; ?>">Delete</a>
+                                </div>
                             </td>
                         </tr>
                     <?php endwhile; ?>
@@ -327,7 +320,6 @@ require __DIR__ . "/header.php";
                 <?php endif; ?>
                 </tbody>
             </table>
-            <p id="inventoryPageEmpty" class="muted table-empty-note" hidden>No visible products match your page search.</p>
         </div>
         </div>
 
@@ -357,43 +349,8 @@ require __DIR__ . "/header.php";
 <script>
 const exportRows = <?php echo json_encode($rowsForExport, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT); ?>;
 const exportBtn = document.getElementById("exportCsvBtn");
-const inventoryPageSearch = document.getElementById("inventoryPageSearch");
-const clearInventoryPageSearch = document.getElementById("clearInventoryPageSearch");
 const inventoryCompactToggle = document.getElementById("inventoryCompactToggle");
-const inventoryRows = Array.from(document.querySelectorAll(".inventory-row"));
-const inventoryVisibleCount = document.getElementById("inventoryVisibleCount");
-const inventoryPageEmpty = document.getElementById("inventoryPageEmpty");
 const inventoryTable = document.querySelector(".inventory-table");
-
-function applyInventoryPageSearch() {
-    const query = inventoryPageSearch ? inventoryPageSearch.value.trim().toLowerCase() : "";
-    let visible = 0;
-
-    inventoryRows.forEach((row) => {
-        const isVisible = row.textContent.toLowerCase().includes(query);
-        row.hidden = !isVisible;
-        visible += isVisible ? 1 : 0;
-    });
-
-    if (inventoryVisibleCount) {
-        inventoryVisibleCount.textContent = visible;
-    }
-    if (inventoryPageEmpty) {
-        inventoryPageEmpty.hidden = visible !== 0;
-    }
-}
-
-if (inventoryPageSearch) {
-    inventoryPageSearch.addEventListener("input", applyInventoryPageSearch);
-}
-
-if (clearInventoryPageSearch && inventoryPageSearch) {
-    clearInventoryPageSearch.addEventListener("click", () => {
-        inventoryPageSearch.value = "";
-        applyInventoryPageSearch();
-        inventoryPageSearch.focus();
-    });
-}
 
 if (inventoryCompactToggle && inventoryTable) {
     inventoryCompactToggle.addEventListener("change", () => {
@@ -441,7 +398,6 @@ if (exportBtn) {
     });
 }
 
-applyInventoryPageSearch();
 </script>
 
 <?php require __DIR__ . "/footer.php"; ?>
