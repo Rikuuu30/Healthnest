@@ -269,18 +269,23 @@ require __DIR__ . "/header.php";
                 <h3>Account List</h3>
                 <p class="filter-count"><span id="accountVisibleCount"><?php echo $totalUsers; ?></span> of <?php echo $totalUsers; ?> account<?php echo $totalUsers === 1 ? "" : "s"; ?> shown.</p>
             </div>
-            <div class="table-tools account-table-tools">
-                <div class="table-tools-head">
-                    <label for="accountPageSearch">Search accounts</label>
-                    <button id="clearAccountSearch" type="button" class="icon-text-button">Clear</button>
-                </div>
-                <input id="accountPageSearch" type="search" placeholder="Name or email" autocomplete="off">
-                <div class="segmented-filters" aria-label="Account filters">
-                    <button type="button" class="active" data-account-filter="all">All</button>
-                    <button type="button" data-account-filter="seller">Sellers</button>
-                    <button type="button" data-account-filter="buyer">Buyers</button>
-                    <button type="button" data-account-filter="inactive">Needs Review</button>
-                </div>
+            <div class="account-summary-mini">
+                <span><?php echo $sellerUsers; ?> Sellers</span>
+                <span><?php echo $buyerUsers; ?> Buyers</span>
+                <span><?php echo $inactiveUsers; ?> Needs Review</span>
+            </div>
+        </div>
+        <div class="table-tools account-table-tools">
+            <label for="accountPageSearch">Search accounts</label>
+            <div class="table-search-row">
+                <input id="accountPageSearch" type="search" placeholder="Filter by name, email, level, or status" autocomplete="off">
+                <button id="clearAccountSearch" type="button" class="icon-text-button">Clear</button>
+            </div>
+            <div class="segmented-filters" aria-label="Account filters">
+                <button type="button" class="active" data-account-filter="all">All</button>
+                <button type="button" data-account-filter="seller">Sellers</button>
+                <button type="button" data-account-filter="buyer">Buyers</button>
+                <button type="button" data-account-filter="inactive">Needs Review</button>
             </div>
         </div>
         <div class="table-wrap">
@@ -328,9 +333,10 @@ require __DIR__ . "/header.php";
                             <td class="account-level-cell"><span class="badge"><?php echo e(accountLevelLabel($row["level"])); ?></span></td>
                             <td class="account-status-cell"><span class="status <?php echo e($statusValue); ?>"><?php echo e(ucfirst($row["status"])); ?></span></td>
                             <td class="table-action-cell">
-                                <a href="manageusers.php?edit=<?php echo (int) $row["id"]; ?>">Edit</a>
                                 <?php if ((int) $row["id"] !== sessionUserId()): ?>
                                     <a class="danger-link" data-confirm-disable href="manageusers.php?delete=<?php echo (int) $row["id"]; ?>">Disable</a>
+                                <?php else: ?>
+                                    <span class="action-note">Current account</span>
                                 <?php endif; ?>
                             </td>
                         </tr>
