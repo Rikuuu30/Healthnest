@@ -90,18 +90,23 @@ require __DIR__ . "/header.php";
                 <h3>Activity Records</h3>
                 <p class="filter-count"><span id="auditVisibleCount"><?php echo $totalLogs; ?></span> of <?php echo $totalLogs; ?> event<?php echo $totalLogs === 1 ? "" : "s"; ?> shown.</p>
             </div>
-            <div class="table-tools audit-table-tools">
-                <div class="table-tools-head">
-                    <label for="auditPageSearch">Search records</label>
-                    <button id="clearAuditSearch" type="button" class="icon-text-button">Clear</button>
-                </div>
-                <input id="auditPageSearch" type="search" placeholder="Action, user, table, or detail" autocomplete="off">
-                <div class="segmented-filters" aria-label="Audit filters">
-                    <button type="button" class="active" data-audit-filter="all">All</button>
-                    <button type="button" data-audit-filter="products">Products</button>
-                    <button type="button" data-audit-filter="tblaccount">Accounts</button>
-                    <button type="button" data-audit-filter="orders">Orders</button>
-                </div>
+            <div class="audit-table-summary">
+                <span><?php echo $activeActors; ?> actors</span>
+                <span><?php echo $affectedTables; ?> tables</span>
+            </div>
+        </div>
+        <div class="table-tools audit-table-tools">
+            <label for="auditPageSearch">Search records</label>
+            <div class="table-search-row">
+                <input id="auditPageSearch" type="search" placeholder="Filter by action, user, table, target, detail, or date" autocomplete="off">
+                <button id="clearAuditSearch" type="button" class="icon-text-button">Clear</button>
+                <button id="exportAuditCsv" type="button" class="icon-text-button">Export</button>
+            </div>
+            <div class="segmented-filters" aria-label="Audit filters">
+                <button type="button" class="active" data-audit-filter="all">All</button>
+                <button type="button" data-audit-filter="products">Products</button>
+                <button type="button" data-audit-filter="tblaccount">Accounts</button>
+                <button type="button" data-audit-filter="orders">Orders</button>
             </div>
         </div>
         <div class="table-wrap">
@@ -154,6 +159,7 @@ const auditRows = Array.from(document.querySelectorAll(".audit-row"));
 const auditVisibleCount = document.getElementById("auditVisibleCount");
 const auditEmpty = document.getElementById("auditPageEmpty");
 const auditFilterButtons = Array.from(document.querySelectorAll("[data-audit-filter]"));
+const exportAuditCsv = document.getElementById("exportAuditCsv");
 let activeAuditFilter = "all";
 
 function applyAuditFilters() {
@@ -198,6 +204,31 @@ auditFilterButtons.forEach((button) => {
         applyAuditFilters();
     });
 });
+
+if (exportAuditCsv) {
+    exportAuditCsv.addEventListener("click", () => {
+        const visibleRows = auditRows.filter((row) => !row.hidden);
+        const lines = [["Log", "Actor", "Event", "Target", "Details", "Date"].join(",")];
+
+        visibleRows.forEach((row) => {
+            const cells = Array.from(row.cells).map((cell) => {
+                const text = cell.textContent.replace(/\s+/g, " ").trim();
+                return /[",\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
+            });
+            lines.push(cells.join(","));
+        });
+
+        const blob = new Blob([lines.join("\n")], { type: "text/csv;charset=utf-8;" });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = "audit-log-export.csv";
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+    });
+}
 
 applyAuditFilters();
 </script>
