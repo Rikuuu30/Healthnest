@@ -284,11 +284,11 @@ require __DIR__ . "/header.php";
             </section>
 
             <div class="table-card low-stock-card">
-                <div class="card-heading-row">
-                    <div>
-                        <span class="panel-label">Inventory Watch</span>
-                        <h3>Low Stock Products</h3>
-                        <p>Products with 10 or fewer items left in stock, ordered by urgency.</p>
+                <div class="inventory-watch-header">
+                    <div class="inventory-watch-title">
+                        <span class="panel-label">Inventory Priorities</span>
+                        <h3>Stock Readiness</h3>
+                        <p>A dashboard summary of catalog availability, restock urgency, and products that need attention first.</p>
                     </div>
                     <div class="inventory-summary-pills">
                         <div>
@@ -308,47 +308,68 @@ require __DIR__ . "/header.php";
                             <strong><?php echo $criticalStockCount; ?></strong>
                         </div>
                     </div>
-                    <div class="dashboard-search">
-                        <label for="lowStockSearch">Find Product</label>
-                        <input id="lowStockSearch" type="search" placeholder="Search low stock" autocomplete="off">
+                    <div class="inventory-watch-tools">
+                        <div class="dashboard-search">
+                            <label for="lowStockSearch">Find Product</label>
+                            <input id="lowStockSearch" type="search" placeholder="Search priority items" autocomplete="off">
+                        </div>
                         <label class="inline-filter"><input id="criticalOnlyFilter" type="checkbox"> Critical only</label>
                     </div>
                 </div>
 
+                <div class="inventory-priority-insights">
+                    <div>
+                        <span>Availability</span>
+                        <strong><?php echo $activeProducts; ?> ready</strong>
+                        <p><?php echo $inactiveProducts; ?> inactive listing<?php echo $inactiveProducts === 1 ? "" : "s"; ?> should be reviewed before promotion.</p>
+                    </div>
+                    <div class="<?php echo $criticalStockCount > 0 ? "needs-attention" : ""; ?>">
+                        <span>Restock Focus</span>
+                        <strong><?php echo $criticalStockCount > 0 ? $criticalStockCount . " critical" : "Stable"; ?></strong>
+                        <p><?php echo $lowStockCount > 0 ? $lowStockCount . " product" . ($lowStockCount === 1 ? "" : "s") . " at or below 10 units." : "No urgent stock issues detected."; ?></p>
+                    </div>
+                    <div>
+                        <span>Next Move</span>
+                        <strong><?php echo $lowStockCount > 0 ? "Restock queue" : "Monitor sales"; ?></strong>
+                        <p><?php echo $lowStockCount > 0 ? "Prioritize critical products first, then top up watch items." : "Inventory is healthy, so review demand and category performance."; ?></p>
+                    </div>
+                </div>
+
                 <div class="table-wrap">
-                <table id="lowStockTable" border="1" cellpadding="8" cellspacing="0">
-                    <tr>
-                        <th>Product</th>
-                        <th>Category</th>
-                        <th>Price</th>
-                        <th>Stock Level</th>
-                        <th>Suggested Restock</th>
-                        <th>Status</th>
-                        <th>Action</th>
-                    </tr>
+                <table id="lowStockTable" class="inventory-watch-table" border="1" cellpadding="8" cellspacing="0">
+                    <thead>
+                        <tr>
+                            <th>Product</th>
+                            <th>Stock Level</th>
+                            <th>Restock Plan</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
                     <?php if ($lowStockResult && mysqli_num_rows($lowStockResult) > 0): ?>
                         <?php while ($row = mysqli_fetch_assoc($lowStockResult)): ?>
                             <?php $stockPercent = max(6, min(100, round(((int) $row["stock_quantity"] / 10) * 100))); ?>
                             <?php $suggestedRestock = max(0, 30 - (int) $row["stock_quantity"]); ?>
                             <?php $stockSeverity = (int) $row["stock_quantity"] <= 5 ? "critical" : "watch"; ?>
                             <tr data-stock-severity="<?php echo e($stockSeverity); ?>">
-                                <td><strong><?php echo e($row["product_name"]); ?></strong></td>
-                                <td><?php echo e($row["category_name"] ?? "Uncategorized"); ?></td>
-                                <td><?php echo formatPrice($row["price"]); ?></td>
-                                <td>
+                                <td class="watch-product-cell">
+                                    <strong><?php echo e($row["product_name"]); ?></strong>
+                                    <span><?php echo e($row["category_name"] ?? "Uncategorized"); ?> &middot; <?php echo formatPrice($row["price"]); ?></span>
+                                </td>
+                                <td class="watch-stock-cell">
                                     <span class="stock-badge <?php echo $stockSeverity === "critical" ? "stock-critical" : "stock-low"; ?>"><?php echo (int) $row["stock_quantity"]; ?> left</span>
                                     <div class="mini-meter"><i style="width: <?php echo $stockPercent; ?>%;"></i></div>
                                 </td>
-                                <td><strong><?php echo $suggestedRestock; ?></strong> unit(s)</td>
-                                <td><span class="status <?php echo e(strtolower($row["status"])); ?>"><?php echo e(ucfirst($row["status"])); ?></span></td>
-                                <td><a href="editproduct.php?id=<?php echo (int) $row["product_id"]; ?>">Restock</a></td>
+                                <td class="watch-restock-cell"><strong><?php echo $suggestedRestock; ?></strong><span>units to reach 30</span></td>
+                                <td class="watch-action-cell"><a href="editproduct.php?id=<?php echo (int) $row["product_id"]; ?>">Restock</a></td>
                             </tr>
                         <?php endwhile; ?>
                     <?php else: ?>
-                        <tr>
-                            <td colspan="7">No low stock products. Inventory is healthy.</td>
+                        <tr class="inventory-watch-empty-row">
+                            <td colspan="4">No low stock products. Inventory is healthy.</td>
                         </tr>
                     <?php endif; ?>
+                    </tbody>
                 </table>
                 <p id="lowStockEmpty" class="muted table-empty-note" hidden>No matching low stock product.</p>
                 </div>
@@ -436,7 +457,7 @@ if (lowStockSearch && lowStockTable && lowStockEmpty) {
     const applyLowStockFilters = () => {
         const query = lowStockSearch.value.trim().toLowerCase();
         const criticalOnly = criticalOnlyFilter ? criticalOnlyFilter.checked : false;
-        const rows = Array.from(lowStockTable.querySelectorAll("tr")).slice(1);
+        const rows = Array.from(lowStockTable.querySelectorAll("tr[data-stock-severity]"));
         let visibleRows = 0;
 
         rows.forEach((row) => {
