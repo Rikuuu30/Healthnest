@@ -83,39 +83,123 @@ require __DIR__ . "/header.php";
         </div>
     </div>
 
-    <div class="table-card">
-        <h3>Activity Records</h3>
+    <div class="table-card audit-records-card">
+        <div class="table-card-header">
+            <div>
+                <span class="panel-label">Event Stream</span>
+                <h3>Activity Records</h3>
+                <p class="filter-count"><span id="auditVisibleCount"><?php echo $totalLogs; ?></span> of <?php echo $totalLogs; ?> event<?php echo $totalLogs === 1 ? "" : "s"; ?> shown.</p>
+            </div>
+            <div class="table-tools audit-table-tools">
+                <div class="table-tools-head">
+                    <label for="auditPageSearch">Search records</label>
+                    <button id="clearAuditSearch" type="button" class="icon-text-button">Clear</button>
+                </div>
+                <input id="auditPageSearch" type="search" placeholder="Action, user, table, or detail" autocomplete="off">
+                <div class="segmented-filters" aria-label="Audit filters">
+                    <button type="button" class="active" data-audit-filter="all">All</button>
+                    <button type="button" data-audit-filter="products">Products</button>
+                    <button type="button" data-audit-filter="tblaccount">Accounts</button>
+                    <button type="button" data-audit-filter="orders">Orders</button>
+                </div>
+            </div>
+        </div>
         <div class="table-wrap">
-            <table border="1" cellpadding="8" cellspacing="0">
-                <tr>
-                    <th>Log ID</th>
-                    <th>User</th>
-                    <th>Action</th>
-                    <th>Table</th>
-                    <th>Record</th>
-                    <th>Details</th>
-                    <th>Date</th>
-                </tr>
+            <table class="audit-table" border="1" cellpadding="8" cellspacing="0">
+                <thead>
+                    <tr>
+                        <th>Log</th>
+                        <th>Actor</th>
+                        <th>Event</th>
+                        <th>Target</th>
+                        <th>Details</th>
+                        <th>Date</th>
+                    </tr>
+                </thead>
+                <tbody>
                 <?php if ($result && mysqli_num_rows($result) > 0): ?>
                     <?php while ($row = mysqli_fetch_assoc($result)): ?>
-                        <tr>
-                            <td><?php echo (int) $row["log_id"]; ?></td>
-                            <td><?php echo e(accountFullName($row)); ?></td>
-                            <td><strong><?php echo e($row["action"]); ?></strong></td>
-                            <td><?php echo e($row["table_affected"]); ?></td>
-                            <td><?php echo e($row["record_id"]); ?></td>
-                            <td><?php echo e($row["details"]); ?></td>
-                            <td><?php echo e($row["created_at"]); ?></td>
+                        <?php $auditTable = strtolower((string) $row["table_affected"]); ?>
+                        <tr class="audit-row" data-table-row data-audit-table="<?php echo e($auditTable); ?>">
+                            <td class="id-cell">#<?php echo (int) $row["log_id"]; ?></td>
+                            <td class="audit-actor-cell">
+                                <strong><?php echo e(accountFullName($row)); ?></strong>
+                                <span><?php echo e($row["email"] ?: "System activity"); ?></span>
+                            </td>
+                            <td class="audit-action-cell"><strong><?php echo e($row["action"]); ?></strong></td>
+                            <td class="audit-target-cell">
+                                <span class="badge"><?php echo e($row["table_affected"] ?: "Unknown"); ?></span>
+                                <em>Record #<?php echo e($row["record_id"] ?: "-"); ?></em>
+                            </td>
+                            <td class="audit-detail-cell"><?php echo e($row["details"]); ?></td>
+                            <td class="audit-date-cell"><?php echo e($row["created_at"]); ?></td>
                         </tr>
                     <?php endwhile; ?>
                 <?php else: ?>
-                    <tr>
-                        <td colspan="7">No audit logs found.</td>
+                    <tr class="empty-table-row">
+                        <td colspan="6">No audit logs found.</td>
                     </tr>
                 <?php endif; ?>
+                </tbody>
             </table>
+            <p id="auditPageEmpty" class="muted table-empty-note" hidden>No audit records match your current filters.</p>
         </div>
     </div>
 </main>
+
+<script>
+const auditSearch = document.getElementById("auditPageSearch");
+const clearAuditSearch = document.getElementById("clearAuditSearch");
+const auditRows = Array.from(document.querySelectorAll(".audit-row"));
+const auditVisibleCount = document.getElementById("auditVisibleCount");
+const auditEmpty = document.getElementById("auditPageEmpty");
+const auditFilterButtons = Array.from(document.querySelectorAll("[data-audit-filter]"));
+let activeAuditFilter = "all";
+
+function applyAuditFilters() {
+    const query = auditSearch ? auditSearch.value.trim().toLowerCase() : "";
+    let visible = 0;
+
+    auditRows.forEach((row) => {
+        const tableName = row.dataset.auditTable || "";
+        const matchesSearch = row.textContent.toLowerCase().includes(query);
+        const matchesFilter = activeAuditFilter === "all"
+            || tableName === activeAuditFilter
+            || (activeAuditFilter === "orders" && tableName.includes("order"));
+        const isVisible = matchesSearch && matchesFilter;
+        row.hidden = !isVisible;
+        visible += isVisible ? 1 : 0;
+    });
+
+    if (auditVisibleCount) {
+        auditVisibleCount.textContent = visible;
+    }
+    if (auditEmpty) {
+        auditEmpty.hidden = visible !== 0;
+    }
+}
+
+if (auditSearch) {
+    auditSearch.addEventListener("input", applyAuditFilters);
+}
+
+if (clearAuditSearch && auditSearch) {
+    clearAuditSearch.addEventListener("click", () => {
+        auditSearch.value = "";
+        applyAuditFilters();
+        auditSearch.focus();
+    });
+}
+
+auditFilterButtons.forEach((button) => {
+    button.addEventListener("click", () => {
+        activeAuditFilter = button.dataset.auditFilter;
+        auditFilterButtons.forEach((item) => item.classList.toggle("active", item === button));
+        applyAuditFilters();
+    });
+});
+
+applyAuditFilters();
+</script>
 
 <?php require __DIR__ . "/footer.php"; ?>
