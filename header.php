@@ -108,7 +108,6 @@ if ($useSellerShell) {
                 <a class="brand" href="index.php">
                     <img src="asset/healthnest-logo.png" alt="HealthNest logo">
                 </a>
-                <div class="topbar-note">Premium Wellness Portal</div>
 
                 <nav class="main-nav">
                     <?php if ($user): ?>
