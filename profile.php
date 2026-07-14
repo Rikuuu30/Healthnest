@@ -157,6 +157,15 @@ $statusLabel = ucfirst(strtolower($user["status"] ?? "active"));
 $statusClass = preg_replace('/[^a-z0-9_-]/', '', strtolower($user["status"] ?? "active"));
 $nameParts = array_values(array_filter(preg_split('/\s+/', trim($fullName))));
 $profileInitials = "U";
+$birthDateText = $values["birthdate"] !== "" ? date("M j, Y", strtotime($values["birthdate"])) : "Not set";
+$memberSinceText = !empty($user["created_at"]) ? date("M j, Y", strtotime($user["created_at"])) : "Not recorded";
+$contactText = $values["contact"] !== "" ? $values["contact"] : "No contact";
+$sellerStats = [
+    "products" => 0,
+    "low_stock" => 0,
+    "audit_events" => 0,
+    "last_event" => "No activity yet",
+];
 
 if ($nameParts) {
     $profileInitials = mb_strtoupper(mb_substr($nameParts[0], 0, 1));
@@ -171,6 +180,29 @@ if (
     && is_file(__DIR__ . "/" . $profileImage)
 ) {
     $profileImageUrl = $profileImage;
+}
+
+if ($isSellerProfile) {
+    $sellerProductResult = mysqli_query($conn, "
+        SELECT
+            COUNT(*) AS products,
+            SUM(CASE WHEN stock_quantity <= 10 THEN 1 ELSE 0 END) AS low_stock
+        FROM products
+    ");
+    $sellerProductStats = $sellerProductResult ? mysqli_fetch_assoc($sellerProductResult) : [];
+    $sellerStats["products"] = (int) ($sellerProductStats["products"] ?? 0);
+    $sellerStats["low_stock"] = (int) ($sellerProductStats["low_stock"] ?? 0);
+
+    $sellerAuditResult = mysqli_query($conn, "
+        SELECT COUNT(*) AS audit_events, MAX(created_at) AS last_event
+        FROM audit_logs
+        WHERE user_id = " . (int) $user["id"] . "
+    ");
+    $sellerAuditStats = $sellerAuditResult ? mysqli_fetch_assoc($sellerAuditResult) : [];
+    $sellerStats["audit_events"] = (int) ($sellerAuditStats["audit_events"] ?? 0);
+    if (!empty($sellerAuditStats["last_event"])) {
+        $sellerStats["last_event"] = date("M j, Y", strtotime($sellerAuditStats["last_event"]));
+    }
 }
 
 $pageTitle = "My Profile";
@@ -191,56 +223,121 @@ require __DIR__ . "/header.php";
     <form id="profileForm" class="profile-form" method="post" action="profile.php" enctype="multipart/form-data">
         <?php echo csrfField(); ?>
 
-        <section class="profile-card profile-overview-card" aria-labelledby="profile-overview-title">
-            <h2 id="profile-overview-title" class="visually-hidden">Profile overview</h2>
+        <div class="seller-profile-sidebar">
+            <section class="profile-card profile-overview-card" aria-labelledby="profile-overview-title">
+                <h2 id="profile-overview-title" class="visually-hidden">Profile overview</h2>
 
-            <div class="profile-avatar-wrap">
-                <span id="profileAvatar" class="profile-avatar" aria-hidden="true">
-                    <?php if ($profileImageUrl !== ""): ?>
-                        <img id="profileAvatarImage" src="<?php echo e($profileImageUrl); ?>" alt="">
-                        <span id="profileAvatarInitials" hidden><?php echo e($profileInitials); ?></span>
-                    <?php else: ?>
-                        <img id="profileAvatarImage" src="" alt="" hidden>
-                        <span id="profileAvatarInitials"><?php echo e($profileInitials); ?></span>
-                    <?php endif; ?>
-                </span>
+                <div class="profile-avatar-wrap">
+                    <span id="profileAvatar" class="profile-avatar" aria-hidden="true">
+                        <?php if ($profileImageUrl !== ""): ?>
+                            <img id="profileAvatarImage" src="<?php echo e($profileImageUrl); ?>" alt="">
+                            <span id="profileAvatarInitials" hidden><?php echo e($profileInitials); ?></span>
+                        <?php else: ?>
+                            <img id="profileAvatarImage" src="" alt="" hidden>
+                            <span id="profileAvatarInitials"><?php echo e($profileInitials); ?></span>
+                        <?php endif; ?>
+                    </span>
 
-                <label class="profile-photo-control" for="profile_image" title="Choose a new profile photo">
-                    <span aria-hidden="true">&#128247;</span>
-                    <span class="visually-hidden">Choose a new profile photo</span>
-                </label>
-                <input class="visually-hidden" id="profile_image" type="file" name="profile_image" accept="image/jpeg,image/png" aria-describedby="profile-photo-help">
-            </div>
-
-            <div class="profile-identity">
-                <h2><?php echo e($fullName); ?></h2>
-                <span class="profile-role-badge"><?php echo e($roleLabel); ?></span>
-            </div>
-
-            <p id="profile-photo-help" class="profile-photo-help">JPG or PNG, up to 3 MB. Square photos look best.</p>
-
-            <div class="profile-status-row">
-                <span>Status</span>
-                <strong class="profile-status <?php echo e($statusClass); ?>"><?php echo e($statusLabel); ?></strong>
-            </div>
-
-            <div class="profile-completion-card">
-                <div>
-                    <span>Profile Readiness</span>
-                    <strong id="profileCompletionScore">0%</strong>
+                    <label class="profile-photo-control" for="profile_image" title="Choose a new profile photo">
+                        <span aria-hidden="true">&#128247;</span>
+                        <span class="visually-hidden">Choose a new profile photo</span>
+                    </label>
+                    <input class="visually-hidden" id="profile_image" type="file" name="profile_image" accept="image/jpeg,image/png" aria-describedby="profile-photo-help">
                 </div>
-                <div class="status-meter"><span id="profileCompletionBar" style="width: 0%;"></span></div>
-                <p id="profileCompletionHint">Complete the required details to keep the account ready.</p>
-            </div>
-        </section>
+
+                <div class="profile-identity">
+                    <h2><?php echo e($fullName); ?></h2>
+                    <span class="profile-role-badge"><?php echo e($roleLabel); ?></span>
+                </div>
+
+                <p id="profile-photo-help" class="profile-photo-help">JPG or PNG, up to 3 MB. Square photos look best.</p>
+
+                <div class="profile-status-row">
+                    <span>Status</span>
+                    <strong class="profile-status <?php echo e($statusClass); ?>"><?php echo e($statusLabel); ?></strong>
+                </div>
+
+                <?php if ($isSellerProfile): ?>
+                    <div class="seller-profile-facts">
+                        <div>
+                            <span>Email</span>
+                            <strong><?php echo e($values["email"]); ?></strong>
+                        </div>
+                        <div>
+                            <span>Contact</span>
+                            <strong><?php echo e($contactText); ?></strong>
+                        </div>
+                        <div>
+                            <span>Birth Date</span>
+                            <strong><?php echo e($birthDateText); ?></strong>
+                        </div>
+                        <div>
+                            <span>Member Since</span>
+                            <strong><?php echo e($memberSinceText); ?></strong>
+                        </div>
+                    </div>
+                <?php endif; ?>
+
+                <div class="profile-completion-card">
+                    <div>
+                        <span>Profile Readiness</span>
+                        <strong id="profileCompletionScore">0%</strong>
+                    </div>
+                    <div class="status-meter"><span id="profileCompletionBar" style="width: 0%;"></span></div>
+                    <p id="profileCompletionHint">Complete the required details to keep the account ready.</p>
+                </div>
+            </section>
+
+            <?php if ($isSellerProfile): ?>
+                <section class="profile-card seller-workspace-card" aria-labelledby="seller-workspace-title">
+                    <div class="profile-card-heading">
+                        <h2 id="seller-workspace-title">Seller Snapshot</h2>
+                        <p>Quick context for the account you are using now.</p>
+                    </div>
+                    <div class="seller-workspace-stats">
+                        <div>
+                            <span>Products</span>
+                            <strong><?php echo $sellerStats["products"]; ?></strong>
+                        </div>
+                        <div>
+                            <span>Low Stock</span>
+                            <strong><?php echo $sellerStats["low_stock"]; ?></strong>
+                        </div>
+                        <div>
+                            <span>Your Audit Events</span>
+                            <strong><?php echo $sellerStats["audit_events"]; ?></strong>
+                        </div>
+                        <div>
+                            <span>Last Activity</span>
+                            <strong><?php echo e($sellerStats["last_event"]); ?></strong>
+                        </div>
+                    </div>
+                    <div class="seller-profile-actions">
+                        <a href="inventory.php">Inventory</a>
+                        <a href="auditlog.php">Audit Log</a>
+                        <a href="seller_changepassword.php">Password</a>
+                    </div>
+                </section>
+            <?php endif; ?>
+        </div>
 
         <section class="profile-card profile-information-card" aria-labelledby="personal-information-title">
             <div class="profile-card-heading">
                 <h2 id="personal-information-title">Personal Information</h2>
                 <p><?php echo $isSellerProfile
-                    ? "Visible to HealthNest support and used for order and shipping details."
+                    ? "Keep your seller account contact details clean and ready for account recovery, shipping, and support records."
                     : "Used for your orders, delivery, and account recovery."; ?></p>
             </div>
+
+            <?php if ($isSellerProfile): ?>
+                <div class="seller-form-toolbar">
+                    <div>
+                        <span>Editing</span>
+                        <strong><?php echo e($fullName); ?></strong>
+                    </div>
+                    <button type="button" id="copySellerEmail">Copy Email</button>
+                </div>
+            <?php endif; ?>
 
             <div class="profile-fields">
                 <div class="profile-field">
@@ -307,6 +404,8 @@ require __DIR__ . "/header.php";
     const completionScore = document.getElementById("profileCompletionScore");
     const completionBar = document.getElementById("profileCompletionBar");
     const completionHint = document.getElementById("profileCompletionHint");
+    const copySellerEmail = document.getElementById("copySellerEmail");
+    const emailInput = document.getElementById("email");
     const completionFields = Array.from(form.querySelectorAll("input[required], textarea[required]"));
     const originalSource = avatarImage.getAttribute("src");
     const originallyHidden = avatarImage.hidden;
@@ -362,6 +461,26 @@ require __DIR__ . "/header.php";
         field.addEventListener("input", updateProfileCompletion);
         field.addEventListener("change", updateProfileCompletion);
     });
+
+    if (copySellerEmail && emailInput) {
+        copySellerEmail.addEventListener("click", async () => {
+            const email = emailInput.value.trim();
+            if (!email) {
+                emailInput.focus();
+                return;
+            }
+
+            try {
+                await navigator.clipboard.writeText(email);
+                copySellerEmail.textContent = "Copied";
+                window.setTimeout(() => {
+                    copySellerEmail.textContent = "Copy Email";
+                }, 1400);
+            } catch (error) {
+                emailInput.select();
+            }
+        });
+    }
 
     updateProfileCompletion();
 })();
