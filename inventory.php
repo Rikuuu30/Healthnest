@@ -242,30 +242,56 @@ require __DIR__ . "/header.php";
         </div>
     </form>
 
-    <div class="table-card">
-        <h3>Inventory List</h3>
-        <p class="filter-count"><?php echo $matchingTotal; ?> product<?php echo $matchingTotal === 1 ? "" : "s"; ?> match your filters.</p>
+    <div class="table-card inventory-list-card">
+        <div class="catalog-control-shell">
+            <div class="table-card-header">
+                <div class="catalog-title-block">
+                <span class="panel-label">Catalog Control</span>
+                <h3>Inventory List</h3>
+                <p class="filter-count"><span id="inventoryVisibleCount"><?php echo $matchingTotal; ?></span> of <?php echo $matchingTotal; ?> product<?php echo $matchingTotal === 1 ? "" : "s"; ?> shown.</p>
+                </div>
+                <div class="table-tools">
+                    <div class="table-tools-head">
+                        <label for="inventoryPageSearch">Search this page</label>
+                        <label class="inline-filter compact-toggle"><input id="inventoryCompactToggle" type="checkbox"> Compact rows</label>
+                    </div>
+                    <div class="table-search-row">
+                        <input id="inventoryPageSearch" type="search" placeholder="Filter visible rows" autocomplete="off">
+                        <button id="clearInventoryPageSearch" type="button" class="icon-text-button">Clear</button>
+                    </div>
+                </div>
+            </div>
+            <div class="quick-filter-row">
+                <a class="<?php echo $stockFilter === "" && $statusFilter === "" ? "active" : ""; ?>" href="inventory.php">All</a>
+                <a class="<?php echo $statusFilter === "active" ? "active" : ""; ?>" href="inventory.php?<?php echo inventoryQueryString(["status" => "active", "page" => 1], $currentParams); ?>">Active</a>
+                <a class="<?php echo $stockFilter === "low" ? "active" : ""; ?>" href="inventory.php?<?php echo inventoryQueryString(["stock" => "low", "page" => 1], $currentParams); ?>">Low Stock</a>
+                <a class="<?php echo $stockFilter === "out" ? "active" : ""; ?>" href="inventory.php?<?php echo inventoryQueryString(["stock" => "out", "page" => 1], $currentParams); ?>">Out of Stock</a>
+            </div>
+        </div>
+        <div class="catalog-table-frame">
         <div class="table-wrap">
-            <table border="1" cellpadding="8" cellspacing="0">
-                <tr>
-                    <th>ID</th>
-                    <?php echo sortLink("name_asc", "name_desc", $sort, $currentParams, "Product Name"); ?>
-                    <th class="hide-mobile">Category</th>
-                    <th class="hide-mobile">Description</th>
-                    <?php echo sortLink("price_asc", "price_desc", $sort, $currentParams, "Price"); ?>
-                    <?php echo sortLink("stock_asc", "stock_desc", $sort, $currentParams, "Stock"); ?>
-                    <th>Status</th>
-                    <th>Action</th>
-                </tr>
+            <table class="inventory-table" border="1" cellpadding="8" cellspacing="0">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <?php echo sortLink("name_asc", "name_desc", $sort, $currentParams, "Product"); ?>
+                        <?php echo sortLink("price_asc", "price_desc", $sort, $currentParams, "Price"); ?>
+                        <?php echo sortLink("stock_asc", "stock_desc", $sort, $currentParams, "Stock"); ?>
+                        <th>Status</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody>
                 <?php if ($result && mysqli_num_rows($result) > 0): ?>
                     <?php while ($row = mysqli_fetch_assoc($result)): ?>
                         <?php
                         $qty = (int) $row["stock_quantity"];
                         $stockClass = $qty <= 10 ? "stock-low" : "stock-ok";
+                        $stockPercent = max(4, min(100, round(($qty / 30) * 100)));
                         $imgSrc = trim((string) ($row["image"] ?? ""));
                         ?>
-                        <tr>
-                            <td><?php echo (int) $row["product_id"]; ?></td>
+                        <tr class="inventory-row" data-table-row data-status="<?php echo e(strtolower($row["status"])); ?>" data-stock="<?php echo $qty === 0 ? "out" : ($qty <= 10 ? "low" : "ok"); ?>">
+                            <td class="id-cell">#<?php echo (int) $row["product_id"]; ?></td>
                             <td>
                                 <div class="product-cell">
                                     <?php if ($imgSrc !== "" && $imgSrc !== "placeholder.jpg"): ?>
@@ -273,30 +299,36 @@ require __DIR__ . "/header.php";
                                             <img src="images/<?php echo e($imgSrc); ?>" alt="" onerror="this.parentElement.style.display='none';">
                                         </div>
                                     <?php endif; ?>
-                                    <strong><?php echo e($row["product_name"]); ?></strong>
+                                    <div class="product-cell-copy">
+                                        <strong><?php echo e($row["product_name"]); ?></strong>
+                                        <span><?php echo e($row["category_name"] ?? "Uncategorized"); ?></span>
+                                        <em><?php echo e($row["description"] ?: "No description"); ?></em>
+                                    </div>
                                 </div>
                             </td>
-                            <td class="hide-mobile"><?php echo e($row["category_name"] ?? "Uncategorized"); ?></td>
-                            <td class="hide-mobile desc-cell" onclick="this.classList.toggle('expanded')">
-                                <span><?php echo e($row["description"] ?: "No description"); ?></span>
+                            <td class="price-cell"><?php echo formatPrice($row["price"]); ?></td>
+                            <td class="stock-cell">
+                                <span class="stock-badge <?php echo $stockClass; ?>"><?php echo $qty === 0 ? "Out" : $qty; ?></span>
+                                <div class="mini-meter <?php echo $qty <= 10 ? "risk" : ""; ?>"><i style="width: <?php echo $stockPercent; ?>%;"></i></div>
                             </td>
-                            <td><?php echo formatPrice($row["price"]); ?></td>
-                            <td><span class="stock-badge <?php echo $stockClass; ?>"><?php echo $qty === 0 ? "Out" : $qty; ?></span></td>
-                            <td><span class="status <?php echo e(strtolower($row["status"])); ?>"><?php echo e(ucfirst($row["status"])); ?></span></td>
-                            <td>
+                            <td class="inventory-status-cell"><span class="status <?php echo e(strtolower($row["status"])); ?>"><?php echo e(ucfirst($row["status"])); ?></span></td>
+                            <td class="table-action-cell">
                                 <a href="editproduct.php?id=<?php echo (int) $row["product_id"]; ?>">Edit</a>
-                                <a href="deleteproduct.php?id=<?php echo (int) $row["product_id"]; ?>">Delete</a>
+                                <a class="danger-link" data-confirm-delete href="deleteproduct.php?id=<?php echo (int) $row["product_id"]; ?>">Delete</a>
                             </td>
                         </tr>
                     <?php endwhile; ?>
                 <?php else: ?>
-                    <tr>
-                        <td colspan="8">
+                    <tr class="empty-table-row">
+                        <td colspan="6">
                             <div class="empty-state">No products match your current filters.</div>
                         </td>
                     </tr>
                 <?php endif; ?>
+                </tbody>
             </table>
+            <p id="inventoryPageEmpty" class="muted table-empty-note" hidden>No visible products match your page search.</p>
+        </div>
         </div>
 
         <?php if ($totalPages > 1): ?>
@@ -325,6 +357,57 @@ require __DIR__ . "/header.php";
 <script>
 const exportRows = <?php echo json_encode($rowsForExport, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT); ?>;
 const exportBtn = document.getElementById("exportCsvBtn");
+const inventoryPageSearch = document.getElementById("inventoryPageSearch");
+const clearInventoryPageSearch = document.getElementById("clearInventoryPageSearch");
+const inventoryCompactToggle = document.getElementById("inventoryCompactToggle");
+const inventoryRows = Array.from(document.querySelectorAll(".inventory-row"));
+const inventoryVisibleCount = document.getElementById("inventoryVisibleCount");
+const inventoryPageEmpty = document.getElementById("inventoryPageEmpty");
+const inventoryTable = document.querySelector(".inventory-table");
+
+function applyInventoryPageSearch() {
+    const query = inventoryPageSearch ? inventoryPageSearch.value.trim().toLowerCase() : "";
+    let visible = 0;
+
+    inventoryRows.forEach((row) => {
+        const isVisible = row.textContent.toLowerCase().includes(query);
+        row.hidden = !isVisible;
+        visible += isVisible ? 1 : 0;
+    });
+
+    if (inventoryVisibleCount) {
+        inventoryVisibleCount.textContent = visible;
+    }
+    if (inventoryPageEmpty) {
+        inventoryPageEmpty.hidden = visible !== 0;
+    }
+}
+
+if (inventoryPageSearch) {
+    inventoryPageSearch.addEventListener("input", applyInventoryPageSearch);
+}
+
+if (clearInventoryPageSearch && inventoryPageSearch) {
+    clearInventoryPageSearch.addEventListener("click", () => {
+        inventoryPageSearch.value = "";
+        applyInventoryPageSearch();
+        inventoryPageSearch.focus();
+    });
+}
+
+if (inventoryCompactToggle && inventoryTable) {
+    inventoryCompactToggle.addEventListener("change", () => {
+        inventoryTable.classList.toggle("is-compact", inventoryCompactToggle.checked);
+    });
+}
+
+document.querySelectorAll("[data-confirm-delete]").forEach((link) => {
+    link.addEventListener("click", (event) => {
+        if (!confirm("Delete this product from inventory?")) {
+            event.preventDefault();
+        }
+    });
+});
 
 if (exportBtn) {
     exportBtn.addEventListener("click", () => {
@@ -357,6 +440,8 @@ if (exportBtn) {
         URL.revokeObjectURL(url);
     });
 }
+
+applyInventoryPageSearch();
 </script>
 
 <?php require __DIR__ . "/footer.php"; ?>
