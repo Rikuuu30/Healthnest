@@ -36,7 +36,7 @@ if ($useSellerShell) {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?php echo e($pageTitle); ?> | HealthNest</title>
-    <link rel="stylesheet" href="assets/style.css?v=<?php echo filemtime(__DIR__ . "/assets/style.css"); ?>">
+    <link rel="stylesheet" href="asset/style.css?v=<?php echo filemtime(__DIR__ . "/asset/style.css"); ?>">
 </head>
 <body class="<?php echo e($bodyClass); ?>">
     <?php if ($useSellerShell): ?>
@@ -44,7 +44,7 @@ if ($useSellerShell) {
             <aside class="sidebar">
                 <div class="sidebar-top">
                     <a class="sidebar-brand" href="seller_dashboard.php">
-                        <img src="assets/healthnest-logo.png" alt="HealthNest logo">
+                        <img src="asset/healthnest-logo.png" alt="HealthNest logo">
                     </a>
                     <span class="sidebar-kicker">Admin Panel</span>
                 </div>
@@ -106,7 +106,7 @@ if ($useSellerShell) {
         <header class="site-header">
             <div class="topbar">
                 <a class="brand" href="index.php">
-                    <img src="assets/healthnest-logo.png" alt="HealthNest logo">
+                    <img src="asset/healthnest-logo.png" alt="HealthNest logo">
                 </a>
                 <div class="topbar-note">Premium Wellness Portal</div>
 
