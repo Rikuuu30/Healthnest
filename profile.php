@@ -223,6 +223,15 @@ require __DIR__ . "/header.php";
                 <span>Status</span>
                 <strong class="profile-status <?php echo e($statusClass); ?>"><?php echo e($statusLabel); ?></strong>
             </div>
+
+            <div class="profile-completion-card">
+                <div>
+                    <span>Profile Readiness</span>
+                    <strong id="profileCompletionScore">0%</strong>
+                </div>
+                <div class="status-meter"><span id="profileCompletionBar" style="width: 0%;"></span></div>
+                <p id="profileCompletionHint">Complete the required details to keep the account ready.</p>
+            </div>
         </section>
 
         <section class="profile-card profile-information-card" aria-labelledby="personal-information-title">
@@ -284,7 +293,7 @@ require __DIR__ . "/header.php";
         </div>
         <div class="profile-security-row">
             <p>Your password was last changed on your account creation date. We recommend updating it periodically.</p>
-            <a class="profile-button profile-button-secondary" href="resetpassword.php">Change Password</a>
+            <a class="profile-button profile-button-secondary" href="<?php echo $isSellerProfile ? "seller_changepassword.php" : "resetpassword.php"; ?>">Change Password</a>
         </div>
     </section>
 </main>
@@ -295,6 +304,10 @@ require __DIR__ . "/header.php";
     const fileInput = document.getElementById("profile_image");
     const avatarImage = document.getElementById("profileAvatarImage");
     const avatarInitials = document.getElementById("profileAvatarInitials");
+    const completionScore = document.getElementById("profileCompletionScore");
+    const completionBar = document.getElementById("profileCompletionBar");
+    const completionHint = document.getElementById("profileCompletionHint");
+    const completionFields = Array.from(form.querySelectorAll("input[required], textarea[required]"));
     const originalSource = avatarImage.getAttribute("src");
     const originallyHidden = avatarImage.hidden;
     let previewUrl = "";
@@ -325,8 +338,32 @@ require __DIR__ . "/header.php";
             avatarImage.src = originalSource;
             avatarImage.hidden = originallyHidden;
             avatarInitials.hidden = !originallyHidden;
+            updateProfileCompletion();
         }, 0);
     });
+
+    function updateProfileCompletion() {
+        const completed = completionFields.filter((field) => field.value.trim() !== "").length;
+        const score = completionFields.length ? Math.round((completed / completionFields.length) * 100) : 100;
+
+        completionScore.textContent = `${score}%`;
+        completionBar.style.width = `${score}%`;
+
+        if (score === 100) {
+            completionHint.textContent = "Your profile has the essentials filled in.";
+        } else if (score >= 70) {
+            completionHint.textContent = "Almost ready. Review any missing required detail.";
+        } else {
+            completionHint.textContent = "Add the required details to keep this profile useful.";
+        }
+    }
+
+    completionFields.forEach((field) => {
+        field.addEventListener("input", updateProfileCompletion);
+        field.addEventListener("change", updateProfileCompletion);
+    });
+
+    updateProfileCompletion();
 })();
 </script>
 
