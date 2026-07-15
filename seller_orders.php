@@ -64,7 +64,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
     logAudit($conn, $sellerId, "Update Order", "orders", $orderId, $note);
 
     setFlash("success", "Order #" . $orderId . " is now " . orderStatusLabel($newStatus) . ".");
-    redirect("seller_orders.php?view=" . $orderId);
+    redirect("seller_orders.php#order-" . $orderId);
 }
 
 $orderCounts = [
@@ -85,7 +85,26 @@ if ($countResult) {
 }
 
 $search = trim(isset($_GET["q"]) ? $_GET["q"] : "");
+$statusFilter = strtolower(trim(isset($_GET["status"]) ? $_GET["status"] : ""));
+$sort = strtolower(trim(isset($_GET["sort"]) ? $_GET["sort"] : "newest"));
 $orders = [];
+$rowsForExport = [];
+
+if (!in_array($statusFilter, $allowedStatuses, true)) {
+    $statusFilter = "";
+}
+
+$sortOptions = [
+    "newest" => "o.order_id DESC",
+    "oldest" => "o.order_id ASC",
+    "amount_desc" => "o.total_amount DESC, o.order_id DESC",
+    "amount_asc" => "o.total_amount ASC, o.order_id DESC",
+    "updated_desc" => "o.status_updated_at DESC, o.order_id DESC",
+];
+
+if (!isset($sortOptions[$sort])) {
+    $sort = "newest";
+}
 
 $baseSql = "
     SELECT o.order_id, o.user_id, o.total_amount, o.payment_method, o.shipping_address,
@@ -98,29 +117,57 @@ $baseSql = "
     LEFT JOIN products p ON oi.product_id = p.product_id
 ";
 
+$conditions = [];
+$params = [];
+$types = "";
+
 if ($search !== "") {
     $like = "%" . $search . "%";
-    $orderSql = $baseSql . "
-        WHERE CAST(o.order_id AS CHAR) LIKE ?
+    $conditions[] = "(CAST(o.order_id AS CHAR) LIKE ?
            OR CONCAT(a.firstname, ' ', a.lastname) LIKE ?
+           OR a.email LIKE ?
            OR p.product_name LIKE ?
-           OR o.status LIKE ?
-        GROUP BY o.order_id, o.user_id, o.total_amount, o.payment_method, o.shipping_address,
-                 o.status, o.created_at, o.status_updated_at,
-                 a.firstname, a.middlename, a.lastname, a.email
-        ORDER BY o.order_id DESC
-    ";
+           OR o.payment_method LIKE ?
+           OR o.shipping_address LIKE ?
+           OR o.status LIKE ?)";
+    $params[] = $like;
+    $params[] = $like;
+    $params[] = $like;
+    $params[] = $like;
+    $params[] = $like;
+    $params[] = $like;
+    $params[] = $like;
+    $types .= "sssssss";
+}
+
+if ($statusFilter !== "") {
+    if ($statusFilter === "paid") {
+        $conditions[] = "(o.status IS NULL OR LOWER(o.status) NOT IN ('packed', 'out_delivery', 'shipped', 'delivered', 'cancelled'))";
+    } elseif ($statusFilter === "out_delivery") {
+        $conditions[] = "LOWER(o.status) IN ('out_delivery', 'shipped')";
+    } else {
+        $conditions[] = "LOWER(o.status) = ?";
+        $params[] = $statusFilter;
+        $types .= "s";
+    }
+}
+
+$whereSql = count($conditions) > 0 ? "WHERE " . implode(" AND ", $conditions) : "";
+$orderSql = $baseSql . "
+    $whereSql
+    GROUP BY o.order_id, o.user_id, o.total_amount, o.payment_method, o.shipping_address,
+             o.status, o.created_at, o.status_updated_at,
+             a.firstname, a.middlename, a.lastname, a.email
+    ORDER BY {$sortOptions[$sort]}
+";
+
+if (count($params) > 0) {
     $orderStmt = mysqli_prepare($conn, $orderSql);
-    mysqli_stmt_bind_param($orderStmt, "ssss", $like, $like, $like, $like);
+    mysqli_stmt_bind_param($orderStmt, $types, ...$params);
     mysqli_stmt_execute($orderStmt);
     $ordersResult = mysqli_stmt_get_result($orderStmt);
 } else {
-    $ordersResult = mysqli_query($conn, $baseSql . "
-        GROUP BY o.order_id, o.user_id, o.total_amount, o.payment_method, o.shipping_address,
-                 o.status, o.created_at, o.status_updated_at,
-                 a.firstname, a.middlename, a.lastname, a.email
-        ORDER BY o.order_id DESC
-    ");
+    $ordersResult = mysqli_query($conn, $orderSql);
 }
 
 if ($ordersResult) {
@@ -132,8 +179,34 @@ if ($ordersResult) {
         }
 
         $orders[$bucket][] = $order;
+        $rowsForExport[] = [
+            "order_id" => (int) $order["order_id"],
+            "customer" => accountFullName($order),
+            "email" => $order["email"],
+            "status" => orderStatusLabel($bucket),
+            "total" => $order["total_amount"],
+            "payment_method" => $order["payment_method"],
+            "shipping_address" => $order["shipping_address"],
+            "items" => $order["item_summary"] ?: "No items listed",
+            "updated_at" => formatDateTimeLabel($order["status_updated_at"]),
+        ];
     }
 }
+
+$matchingTotal = count($rowsForExport);
+
+function sellerOrderQueryString(array $overrides = [], array $current = []): string
+{
+    $merged = array_merge($current, $overrides);
+    $merged = array_filter($merged, static fn($value) => $value !== "" && $value !== null);
+    return http_build_query($merged);
+}
+
+$currentParams = [
+    "q" => $search,
+    "status" => $statusFilter,
+    "sort" => $sort === "newest" ? "" : $sort,
+];
 
 $viewOrder = null;
 $viewItems = [];
@@ -199,145 +272,93 @@ require __DIR__ . "/header.php";
 ?>
 
 <main class="page-main order-management-page">
-    <section class="seller-hero order-hero">
+    <div class="seller-page-header order-page-header">
         <div>
-            <div class="eyebrow">Order Fulfillment</div>
-            <h1>Order Management</h1>
-            <p class="lead">Move buyer orders across each delivery stage. Every update is saved for buyer tracking.</p>
+            <div class="eyebrow">Seller Tools</div>
+            <h2>Order Management</h2>
+            <p>Move buyer orders across each delivery stage. Every update is saved for buyer tracking.</p>
         </div>
-        <div class="seller-hero-actions">
-            <a class="button secondary" href="seller_dashboard.php">Dashboard</a>
-        </div>
-    </section>
+        <a class="button secondary" href="seller_dashboard.php">Dashboard</a>
+    </div>
 
-    <section class="order-stat-grid">
-        <div class="order-stat-card warning">
+    <div class="analytics-grid order-stat-grid">
+        <div class="card insight-card order-stat-card warning">
+            <span class="panel-label">To Pack</span>
             <strong><?php echo (int) $orderCounts["paid"]; ?></strong>
-            <span>To Pack</span>
+            <p>Paid orders waiting for packing.</p>
         </div>
-        <div class="order-stat-card info">
+        <div class="card insight-card order-stat-card info">
+            <span class="panel-label">To Ship</span>
             <strong><?php echo (int) $orderCounts["packed"]; ?></strong>
-            <span>To Ship</span>
+            <p>Packed orders ready for courier handoff.</p>
         </div>
-        <div class="order-stat-card purple">
+        <div class="card insight-card order-stat-card purple">
+            <span class="panel-label">Out for Delivery</span>
             <strong><?php echo (int) $orderCounts["out_delivery"]; ?></strong>
-            <span>Out for Delivery</span>
+            <p>Orders currently moving to buyers.</p>
         </div>
-        <div class="order-stat-card success">
+        <div class="card insight-card order-stat-card success">
+            <span class="panel-label">Delivered</span>
             <strong><?php echo (int) $orderCounts["delivered"]; ?></strong>
-            <span>Delivered</span>
+            <p>Completed buyer deliveries.</p>
         </div>
-        <div class="order-stat-card danger">
+        <div class="card insight-card order-stat-card danger">
+            <span class="panel-label">Cancelled</span>
             <strong><?php echo (int) $orderCounts["cancelled"]; ?></strong>
-            <span>Cancelled</span>
+            <p>Orders removed from fulfillment.</p>
         </div>
-    </section>
+    </div>
 
-    <form class="order-search-bar" method="get" action="seller_orders.php">
-        <input type="search" name="q" value="<?php echo e($search); ?>" placeholder="Search by order ID, customer, product, or status">
-        <button type="submit">Search</button>
-        <?php if ($search !== ""): ?>
-            <a href="seller_orders.php">Clear</a>
-        <?php endif; ?>
+    <form class="filter-bar order-search-bar" method="get" action="seller_orders.php">
+        <div class="field grow">
+            <label for="orderSearch">Search</label>
+            <input id="orderSearch" type="search" name="q" value="<?php echo e($search); ?>" placeholder="Order ID, customer, email, product, payment, or address">
+        </div>
+        <div class="field">
+            <label for="orderStatus">Status</label>
+            <select id="orderStatus" name="status">
+                <option value="">All statuses</option>
+                <?php foreach ($columns as $statusKey => $column): ?>
+                    <option value="<?php echo e($statusKey); ?>" <?php echo $statusFilter === $statusKey ? "selected" : ""; ?>><?php echo e($column["title"]); ?></option>
+                <?php endforeach; ?>
+            </select>
+        </div>
+        <div class="field">
+            <label for="orderSort">Sort</label>
+            <select id="orderSort" name="sort">
+                <option value="newest" <?php echo $sort === "newest" ? "selected" : ""; ?>>Newest first</option>
+                <option value="oldest" <?php echo $sort === "oldest" ? "selected" : ""; ?>>Oldest first</option>
+                <option value="updated_desc" <?php echo $sort === "updated_desc" ? "selected" : ""; ?>>Recently updated</option>
+                <option value="amount_desc" <?php echo $sort === "amount_desc" ? "selected" : ""; ?>>Highest total</option>
+                <option value="amount_asc" <?php echo $sort === "amount_asc" ? "selected" : ""; ?>>Lowest total</option>
+            </select>
+        </div>
+        <div class="filter-actions">
+            <button type="submit">Apply</button>
+            <?php if ($search !== "" || $statusFilter !== "" || $sort !== "newest"): ?>
+                <a class="button secondary" href="seller_orders.php">Clear</a>
+            <?php endif; ?>
+        </div>
     </form>
 
-    <?php if ($viewOrder): ?>
-        <?php
-            $viewStatus = sellerOrderBucket($viewOrder["status"]);
-            $viewCustomer = accountFullName($viewOrder);
-        ?>
-        <section class="seller-order-detail-panel">
-            <div class="seller-order-detail-head">
-                <div>
-                    <span class="panel-label">Order Details</span>
-                    <h2>#HN-<?php echo (int) $viewOrder["order_id"]; ?></h2>
-                    <p class="muted">Placed <?php echo e($viewOrder["created_at"]); ?> - <?php echo e(orderStatusLabel($viewOrder["status"])); ?></p>
-                </div>
-                <a href="seller_orders.php">Close</a>
+    <div class="seller-order-control-card">
+        <div class="seller-order-toolbar">
+            <p><?php echo $matchingTotal; ?> order<?php echo $matchingTotal === 1 ? "" : "s"; ?> match your current view.</p>
+            <div class="seller-order-tools">
+                <label class="inline-filter compact-toggle"><input id="orderCompactToggle" type="checkbox"> Compact cards</label>
+                <button type="button" id="orderExportBtn" class="button secondary">Export CSV</button>
             </div>
+        </div>
 
-            <div class="seller-order-detail-grid">
-                <div class="seller-order-detail-card">
-                    <span class="panel-label">Customer</span>
-                    <h3><?php echo e($viewCustomer); ?></h3>
-                    <p><?php echo e($viewOrder["email"]); ?></p>
-                    <p><?php echo e($viewOrder["contact"]); ?></p>
-                    <p class="muted"><?php echo e($viewOrder["shipping_address"] ?: $viewOrder["address"]); ?></p>
-                </div>
-
-                <div class="seller-order-detail-card">
-                    <span class="panel-label">Payment</span>
-                    <h3><?php echo formatPrice($viewOrder["total_amount"]); ?></h3>
-                    <p><?php echo e($viewOrder["payment_method"]); ?></p>
-                    <p class="muted">Updated <?php echo e(formatDateTimeLabel($viewOrder["status_updated_at"])); ?></p>
-                </div>
-
-                <div class="seller-order-detail-card">
-                    <span class="panel-label">Items</span>
-                    <?php if (count($viewItems) > 0): ?>
-                        <ul class="seller-detail-items">
-                            <?php foreach ($viewItems as $item): ?>
-                                <li>
-                                    <span><?php echo (int) $item["quantity"]; ?>x <?php echo e($item["product_name"]); ?></span>
-                                    <strong><?php echo formatPrice($item["subtotal"]); ?></strong>
-                                </li>
-                            <?php endforeach; ?>
-                        </ul>
-                    <?php else: ?>
-                        <p class="muted">No items listed.</p>
-                    <?php endif; ?>
-                </div>
-            </div>
-
-            <div class="seller-detail-actions">
-                <?php if ($viewStatus === "paid"): ?>
-                    <form method="post" action="seller_orders.php">
-                        <?php echo csrfField(); ?>
-                        <input type="hidden" name="order_id" value="<?php echo (int) $viewOrder["order_id"]; ?>">
-                        <input type="hidden" name="status" value="packed">
-                        <button type="submit">Mark as Packed</button>
-                    </form>
-                <?php elseif ($viewStatus === "packed"): ?>
-                    <form method="post" action="seller_orders.php">
-                        <?php echo csrfField(); ?>
-                        <input type="hidden" name="order_id" value="<?php echo (int) $viewOrder["order_id"]; ?>">
-                        <input type="hidden" name="status" value="out_delivery">
-                        <button type="submit">Hand to Courier</button>
-                    </form>
-                <?php elseif ($viewStatus === "out_delivery"): ?>
-                    <form method="post" action="seller_orders.php">
-                        <?php echo csrfField(); ?>
-                        <input type="hidden" name="order_id" value="<?php echo (int) $viewOrder["order_id"]; ?>">
-                        <input type="hidden" name="status" value="delivered">
-                        <button type="submit">Mark Delivered</button>
-                    </form>
-                <?php endif; ?>
-
-                <?php if ($viewStatus !== "delivered" && $viewStatus !== "cancelled"): ?>
-                    <form method="post" action="seller_orders.php">
-                        <?php echo csrfField(); ?>
-                        <input type="hidden" name="order_id" value="<?php echo (int) $viewOrder["order_id"]; ?>">
-                        <input type="hidden" name="status" value="cancelled">
-                        <button class="secondary" type="submit">Cancel Order</button>
-                    </form>
-                <?php endif; ?>
-            </div>
-
-            <?php if (count($viewHistory) > 0): ?>
-                <div class="seller-detail-history">
-                    <span class="panel-label">Status Updates</span>
-                    <?php foreach ($viewHistory as $history): ?>
-                        <div>
-                            <strong><?php echo e($history["note"]); ?></strong>
-                            <p class="meta"><?php echo e(formatDateTimeLabel($history["created_at"])); ?> - <?php echo e(accountFullName($history)); ?></p>
-                        </div>
-                    <?php endforeach; ?>
-                </div>
-            <?php endif; ?>
-        </section>
-    <?php elseif ($viewOrderId > 0): ?>
-        <div class="error">Order details were not found.</div>
-    <?php endif; ?>
+        <div class="quick-filter-row seller-order-quick-filters">
+            <a class="<?php echo $statusFilter === "" ? "active" : ""; ?>" href="seller_orders.php?<?php echo sellerOrderQueryString(["status" => ""], $currentParams); ?>">All</a>
+            <?php foreach ($columns as $statusKey => $column): ?>
+                <a class="<?php echo $statusFilter === $statusKey ? "active" : ""; ?>" href="seller_orders.php?<?php echo sellerOrderQueryString(["status" => $statusKey], $currentParams); ?>">
+                    <?php echo e($column["title"]); ?>
+                </a>
+            <?php endforeach; ?>
+        </div>
+    </div>
 
     <section class="seller-order-board">
         <?php foreach ($columns as $statusKey => $column): ?>
@@ -354,7 +375,7 @@ require __DIR__ . "/header.php";
                             $customerName = accountFullName($order);
                             $itemSummary = $order["item_summary"] ? $order["item_summary"] : "No items listed";
                         ?>
-                        <article class="seller-order-card">
+                        <article id="order-<?php echo (int) $order["order_id"]; ?>" class="seller-order-card">
                             <div class="seller-order-card-top">
                                 <strong>#HN-<?php echo (int) $order["order_id"]; ?></strong>
                                 <span><?php echo formatPrice($order["total_amount"]); ?></span>
@@ -388,7 +409,7 @@ require __DIR__ . "/header.php";
                                     </form>
                                 <?php endif; ?>
 
-                                <?php if ($status !== "delivered"): ?>
+                                <?php if ($status !== "delivered" && $status !== "cancelled"): ?>
                                     <form method="post" action="seller_orders.php">
                                         <?php echo csrfField(); ?>
                                         <input type="hidden" name="order_id" value="<?php echo (int) $order["order_id"]; ?>">
@@ -397,7 +418,22 @@ require __DIR__ . "/header.php";
                                     </form>
                                 <?php endif; ?>
 
-                                <a href="seller_orders.php?view=<?php echo (int) $order["order_id"]; ?>">View</a>
+                                <button class="order-view-toggle" type="button" aria-expanded="false">View</button>
+                            </div>
+                            <div class="seller-order-inline-detail" hidden>
+                                <div>
+                                    <span class="panel-label">Customer</span>
+                                    <strong><?php echo e($customerName); ?></strong>
+                                    <p><?php echo e($order["email"]); ?></p>
+                                </div>
+                                <div>
+                                    <span class="panel-label">Items</span>
+                                    <p><?php echo e($itemSummary); ?></p>
+                                </div>
+                                <div>
+                                    <span class="panel-label">Delivery</span>
+                                    <p><?php echo e($order["shipping_address"]); ?></p>
+                                </div>
                             </div>
                         </article>
                     <?php endforeach; ?>
@@ -408,5 +444,81 @@ require __DIR__ . "/header.php";
         <?php endforeach; ?>
     </section>
 </main>
+
+<script>
+const orderExportRows = <?php echo json_encode($rowsForExport, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT); ?>;
+const orderExportBtn = document.getElementById("orderExportBtn");
+const orderCompactToggle = document.getElementById("orderCompactToggle");
+const orderBoard = document.querySelector(".seller-order-board");
+const orderFilterForm = document.querySelector(".order-search-bar");
+const orderStatusFilter = document.getElementById("orderStatus");
+const orderSortFilter = document.getElementById("orderSort");
+
+if (orderCompactToggle && orderBoard) {
+    orderCompactToggle.addEventListener("change", () => {
+        orderBoard.classList.toggle("is-compact", orderCompactToggle.checked);
+    });
+}
+
+document.querySelectorAll(".order-view-toggle").forEach((button) => {
+    button.addEventListener("click", () => {
+        const card = button.closest(".seller-order-card");
+        const detail = card ? card.querySelector(".seller-order-inline-detail") : null;
+
+        if (!detail) {
+            return;
+        }
+
+        const isOpening = detail.hidden;
+        detail.hidden = !isOpening;
+        button.setAttribute("aria-expanded", isOpening ? "true" : "false");
+        button.textContent = isOpening ? "Hide" : "View";
+        card.classList.toggle("is-expanded", isOpening);
+    });
+});
+
+[orderStatusFilter, orderSortFilter].forEach((control) => {
+    if (control && orderFilterForm) {
+        control.addEventListener("change", () => {
+            orderFilterForm.requestSubmit();
+        });
+    }
+});
+
+if (orderExportBtn) {
+    orderExportBtn.addEventListener("click", () => {
+        const header = ["Order ID", "Customer", "Email", "Status", "Total", "Payment", "Shipping Address", "Items", "Updated"];
+        const lines = [header.join(",")];
+
+        orderExportRows.forEach((row) => {
+            const cells = [
+                row.order_id,
+                row.customer,
+                row.email,
+                row.status,
+                row.total,
+                row.payment_method,
+                row.shipping_address,
+                row.items,
+                row.updated_at,
+            ].map((value) => {
+                const text = String(value ?? "");
+                return /[",\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
+            });
+            lines.push(cells.join(","));
+        });
+
+        const blob = new Blob([lines.join("\n")], { type: "text/csv;charset=utf-8;" });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = "seller-orders-export.csv";
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+    });
+}
+</script>
 
 <?php require __DIR__ . "/footer.php"; ?>
