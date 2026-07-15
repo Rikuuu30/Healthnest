@@ -287,7 +287,7 @@ require __DIR__ . "/header.php";
                                 <div class="product-cell">
                                     <?php if ($imgSrc !== "" && $imgSrc !== "placeholder.jpg"): ?>
                                         <div class="product-thumb-wrap">
-                                            <img src="images/<?php echo e($imgSrc); ?>" alt="" onerror="this.parentElement.style.display='none';">
+                                            <img src="images/products/<?php echo e(basename($imgSrc)); ?>" alt="" onerror="this.parentElement.style.display='none';">
                                         </div>
                                     <?php endif; ?>
                                     <div class="product-cell-copy">
@@ -306,7 +306,7 @@ require __DIR__ . "/header.php";
                             <td class="table-action-cell">
                                 <div class="inventory-action-group">
                                     <a class="inventory-action edit-action" href="editproduct.php?id=<?php echo (int) $row["product_id"]; ?>">Edit</a>
-                                    <a class="inventory-action delete-action" data-confirm-delete href="deleteproduct.php?id=<?php echo (int) $row["product_id"]; ?>">Delete</a>
+                                    <a class="inventory-action delete-action" href="deleteproduct.php?id=<?php echo (int) $row["product_id"]; ?>">Delete</a>
                                 </div>
                             </td>
                         </tr>
@@ -357,14 +357,6 @@ if (inventoryCompactToggle && inventoryTable) {
         inventoryTable.classList.toggle("is-compact", inventoryCompactToggle.checked);
     });
 }
-
-document.querySelectorAll("[data-confirm-delete]").forEach((link) => {
-    link.addEventListener("click", (event) => {
-        if (!confirm("Delete this product from inventory?")) {
-            event.preventDefault();
-        }
-    });
-});
 
 if (exportBtn) {
     exportBtn.addEventListener("click", () => {
