@@ -89,7 +89,7 @@ require __DIR__ . "/header.php";
     <div class="auth-card auth-card-register">
         <div class="auth-card-topline">
             <a class="home-button" href="index.php" aria-label="Return to the HealthNest home page">&larr; Home</a>
-            <img class="auth-logo" src="assets/healthnest-logo.png" alt="HealthNest">
+            <img class="auth-logo" src="asset/healthnest-logo.png" alt="HealthNest">
         </div>
 
         <div class="auth-heading">
@@ -185,6 +185,6 @@ require __DIR__ . "/header.php";
     </div>
 </main>
 
-<script src="assets/auth.js"></script>
+<script src="asset/auth.js"></script>
 
 <?php require __DIR__ . "/footer.php"; ?>
