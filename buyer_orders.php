@@ -70,6 +70,20 @@ $historyRows = [];
 $allOrders = [];
 $historyByStatus = [];
 $latestHistory = null;
+$orderSummaryResult = mysqli_query($conn, "
+    SELECT
+        COUNT(*) AS total_orders,
+        SUM(CASE WHEN LOWER(COALESCE(status, 'paid')) NOT IN ('delivered', 'cancelled') THEN 1 ELSE 0 END) AS active_orders,
+        SUM(CASE WHEN LOWER(COALESCE(status, 'paid')) = 'delivered' THEN 1 ELSE 0 END) AS delivered_orders,
+        SUM(CASE WHEN LOWER(COALESCE(status, 'paid')) = 'cancelled' THEN 1 ELSE 0 END) AS cancelled_orders
+    FROM orders
+    WHERE user_id = " . (int) $userId . "
+");
+$orderSummary = $orderSummaryResult ? mysqli_fetch_assoc($orderSummaryResult) : [];
+$totalOrderCount = (int) ($orderSummary["total_orders"] ?? 0);
+$activeOrderCount = (int) ($orderSummary["active_orders"] ?? 0);
+$deliveredOrderCount = (int) ($orderSummary["delivered_orders"] ?? 0);
+$cancelledOrderCount = (int) ($orderSummary["cancelled_orders"] ?? 0);
 
 if ($currentOrder) {
     $selectedOrderId = (int) $currentOrder["order_id"];
@@ -142,6 +156,25 @@ require __DIR__ . "/header.php";
         <a class="button secondary" href="profile.php">Back to My Profile</a>
     </section>
 
+    <section class="dashboard-stat-strip buyer-stat-strip">
+        <div>
+            <span>Total Orders</span>
+            <strong><?php echo $totalOrderCount; ?></strong>
+        </div>
+        <div>
+            <span>Active</span>
+            <strong><?php echo $activeOrderCount; ?></strong>
+        </div>
+        <div>
+            <span>Delivered</span>
+            <strong><?php echo $deliveredOrderCount; ?></strong>
+        </div>
+        <div>
+            <span>Cancelled</span>
+            <strong><?php echo $cancelledOrderCount; ?></strong>
+        </div>
+    </section>
+
     <?php if (!$currentOrder): ?>
         <section class="card buyer-tracking-empty">
             <h2>No orders yet</h2>
@@ -156,6 +189,11 @@ require __DIR__ . "/header.php";
             $currentStep = orderStatusStep($currentStatus);
             $canCancel = $currentStatus !== "delivered" && $currentStatus !== "cancelled";
             $firstItemName = count($orderItems) > 0 ? $orderItems[0]["product_name"] : "Order items";
+            $nextActionText = $currentStatus === "delivered"
+                ? "Order delivered. You can shop the catalog again or review similar products."
+                : ($currentStatus === "cancelled"
+                    ? "This order is cancelled. Browse available products to place a new order."
+                    : "Keep this order number handy. Seller updates will appear in the timeline.");
             $timeline = [
                 ["status" => "paid", "label" => "Order Placed"],
                 ["status" => "packed", "label" => "Packed"],
@@ -192,6 +230,7 @@ require __DIR__ . "/header.php";
                         </div>
                         <p><?php echo e($firstItemName); ?></p>
                         <strong><?php echo formatPrice($currentOrder["total_amount"]); ?></strong>
+                        <button class="secondary buyer-copy-order" type="button" data-copy-order="HN-<?php echo (int) $currentOrder["order_id"]; ?>">Copy Order No.</button>
                     </div>
 
                     <div class="tracking-timeline">
@@ -256,6 +295,16 @@ require __DIR__ . "/header.php";
                         <p class="muted">No tracking history yet.</p>
                     <?php endif; ?>
                 </section>
+                <section class="buyer-order-card">
+                    <span class="panel-label">Buyer Guidance</span>
+                    <h2>Next Best Action</h2>
+                    <p><?php echo e($nextActionText); ?></p>
+                    <div class="buyer-chip-row">
+                        <a href="products.php">Shop Catalog</a>
+                        <a href="cart.php">View Cart</a>
+                        <a href="profile.php">Delivery Profile</a>
+                    </div>
+                </section>
             </div>
 
             <aside class="buyer-orders-sidebar">
@@ -279,5 +328,27 @@ require __DIR__ . "/header.php";
         </div>
     <?php endif; ?>
 </main>
+
+<script>
+(() => {
+    const copyButton = document.querySelector("[data-copy-order]");
+    if (!copyButton) {
+        return;
+    }
+
+    copyButton.addEventListener("click", async () => {
+        const orderNumber = copyButton.dataset.copyOrder;
+        try {
+            await navigator.clipboard.writeText(orderNumber);
+            copyButton.textContent = "Copied";
+            window.setTimeout(() => {
+                copyButton.textContent = "Copy Order No.";
+            }, 1400);
+        } catch (error) {
+            copyButton.textContent = orderNumber;
+        }
+    });
+})();
+</script>
 
 <?php require __DIR__ . "/footer.php"; ?>
