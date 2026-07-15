@@ -40,7 +40,7 @@ $stockRiskPercent = $totalProducts > 0 ? round(($lowStockCount / $totalProducts)
 $inventoryUnitsResult = mysqli_query($conn, "SELECT COALESCE(SUM(stock_quantity), 0) AS total FROM products");
 $inventoryUnitsRow = mysqli_fetch_assoc($inventoryUnitsResult);
 $inventoryUnits = (int) ($inventoryUnitsRow["total"] ?? 0);
-$pendingOrderResult = mysqli_query($conn, "SELECT COUNT(*) AS total FROM orders WHERE status IS NULL OR LOWER(status) NOT IN ('completed', 'paid', 'delivered', 'cancelled')");
+$pendingOrderResult = mysqli_query($conn, "SELECT COUNT(*) AS total FROM orders WHERE status IS NULL OR LOWER(status) NOT IN ('delivered', 'cancelled')");
 $pendingOrderRow = mysqli_fetch_assoc($pendingOrderResult);
 $pendingOrders = (int) ($pendingOrderRow["total"] ?? 0);
 $todayActivityResult = mysqli_query($conn, "SELECT COUNT(*) AS total FROM audit_logs WHERE created_at = CURDATE()");
@@ -174,7 +174,7 @@ require __DIR__ . "/header.php";
             <div class="seller-hero-actions">
                 <a class="button" href="addproduct.php">Add Product</a>
                 <a class="button secondary" href="inventory.php">Review Inventory</a>
-                <a class="button secondary" href="auditlog.php">Audit Activity</a>
+                <a class="button secondary" href="seller_orders.php">Manage Orders</a>
             </div>
         </div>
         <div class="seller-health-card">
