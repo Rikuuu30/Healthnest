@@ -128,6 +128,22 @@ require __DIR__ . "/header.php";
             </div>
 
             <div class="form-grid">
+                <div class="full product-image-field">
+                    <label for="product_image">Product Image</label>
+                    <div class="product-upload-control">
+                        <div class="product-upload-preview" id="productImagePreview" aria-hidden="true">
+                            <span>No image</span>
+                            <img id="productImagePreviewImg" src="" alt="" hidden>
+                        </div>
+                        <div class="product-upload-copy">
+                            <strong id="productImageFileName">Choose a product image</strong>
+                            <span>JPG, PNG, or WebP up to 5 MB. Square images look best in the catalog.</span>
+                            <label class="product-upload-button" for="product_image">Browse Image</label>
+                        </div>
+                    </div>
+                    <input class="product-upload-input" id="product_image" type="file" name="product_image" accept="image/jpeg,image/png,image/webp">
+                </div>
+
                 <div class="full">
                     <label for="product_name">Product Name</label>
                     <input id="product_name" type="text" name="product_name" value="<?php echo e($values["product_name"]); ?>" placeholder="Example: CJC-1295" required>
@@ -161,22 +177,6 @@ require __DIR__ . "/header.php";
                 <div>
                     <label for="stock_quantity">Stock</label>
                     <input id="stock_quantity" type="number" name="stock_quantity" min="0" step="1" value="<?php echo e($values["stock_quantity"]); ?>" placeholder="0" required>
-                </div>
-
-                <div class="full">
-                    <label for="product_image">Product Image</label>
-                    <div class="product-upload-control">
-                        <div class="product-upload-preview" id="productImagePreview" aria-hidden="true">
-                            <span>No image</span>
-                            <img id="productImagePreviewImg" src="" alt="" hidden>
-                        </div>
-                        <div class="product-upload-copy">
-                            <strong id="productImageFileName">Choose a product image</strong>
-                            <span>JPG, PNG, or WebP up to 5 MB. Square images look best in the catalog.</span>
-                            <label class="product-upload-button" for="product_image">Browse Image</label>
-                        </div>
-                    </div>
-                    <input class="product-upload-input" id="product_image" type="file" name="product_image" accept="image/jpeg,image/png,image/webp">
                 </div>
 
                 <div class="full">
