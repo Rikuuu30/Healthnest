@@ -7,6 +7,8 @@
     <?php if (!empty($user) && isAdmin()): ?>
             </div>
         </div>
+    <?php endif; ?>
+    <?php if (!empty($user) && isAdmin()): ?>
         <script>
         (() => {
             const key = `healthnest:seller-scroll:${window.location.pathname}`;
