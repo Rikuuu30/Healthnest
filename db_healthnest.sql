@@ -167,7 +167,7 @@ CREATE TABLE `tblaccount` (
 --
 
 INSERT INTO `tblaccount` (`id`, `firstname`, `middlename`, `lastname`, `email`, `password`, `address`, `contact`, `birthdate`, `level`, `status`, `image`, `created_at`) VALUES
-(1, 'System', NULL, 'Seller', 'seller@healthnest.local', 'seller123', 'HealthNest Office', '09000000001', '1995-01-01', 'seller', 'active', '', CURDATE()),
+(1, 'System', NULL, 'Seller', 'seller@healthnest.local', 'seller123', 'HealthNest Office', '09000000001', '1995-01-01', 'seller', 'active', 'uploads/profiles/user-1-20260715185437-d88ce5d866.jpg', CURDATE()),
 (2, 'Sample', NULL, 'Buyer', 'buyer@healthnest.local', 'buyer1234', 'HealthNest Customer Address', '09000000002', '1998-01-01', 'buyer', 'active', '', CURDATE());
 
 --
