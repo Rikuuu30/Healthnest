@@ -127,18 +127,18 @@ CREATE TABLE `products` (
 --
 
 INSERT INTO `products` (`product_id`, `category_id`, `product_name`, `description`, `price`, `stock_quantity`, `image`, `status`, `created_at`) VALUES
-(1, 1, 'Semaglutide', NULL, 945, 50, 'placeholder.jpg', 'active', NULL),
-(2, 1, 'Tirzepatide', NULL, 945, 50, 'placeholder.jpg', 'active', NULL),
-(3, 1, 'Retatrutide', NULL, 1635, 50, 'placeholder.jpg', 'active', NULL),
-(4, 2, 'BPC-157', NULL, 1020, 50, 'placeholder.jpg', 'active', NULL),
-(5, 2, 'TB-500', NULL, 2640, 50, 'placeholder.jpg', 'active', NULL),
-(6, 2, 'BPC-157 + TB-500', NULL, 3075, 50, 'placeholder.jpg', 'active', NULL),
-(7, 3, 'GHK-Cu (Copper Peptide)', NULL, 975, 50, 'placeholder.jpg', 'active', NULL),
-(8, 3, 'NAD+', NULL, 2640, 50, 'placeholder.jpg', 'active', NULL),
-(9, 3, 'Glutathione', NULL, 1470, 50, 'placeholder.jpg', 'active', NULL),
-(10, 4, 'Ipamorelin', NULL, 1215, 50, 'placeholder.jpg', 'active', NULL),
-(11, 4, 'CJC-1295 (with or without DAC)', NULL, 2775, 50, 'placeholder.jpg', 'active', NULL),
-(12, 4, 'Sermorelin', NULL, 2355, 50, 'placeholder.jpg', 'active', NULL);
+(1, 1, 'Semaglutide', 'A GLP-1 receptor agonist commonly used to support weight loss by reducing appetite, slowing gastric emptying, and improving blood sugar regulation.', 945, 25, 'Semaglutide.png', 'active', NULL),
+(2, 1, 'Tirzepatide', 'A dual GIP/GLP-1 receptor agonist designed to promote significant weight reduction while improving insulin sensitivity and metabolic function.', 945, 50, 'Tirzepatide.png', 'active', NULL),
+(3, 1, 'Retatrutide', 'A next-generation triple hormone receptor agonist (GLP-1, GIP, and glucagon) being studied for advanced weight management and metabolic health.', 1635, 50, 'Retatrutide.png', 'active', NULL),
+(4, 2, 'BPC-157', 'A synthetic peptide researched for supporting tendon, ligament, muscle, and gastrointestinal tissue repair while promoting faster recovery.', 1020, 10, 'BPC-157.png', 'active', NULL),
+(5, 2, 'TB-500', 'A peptide that may enhance cell migration, tissue regeneration, flexibility, and recovery following injury or intense physical activity.', 2640, 5, 'TB-500.png', 'active', NULL),
+(6, 2, 'BPC-157 + TB-500', 'A combination therapy intended to maximize healing by combining the regenerative benefits of both peptides for soft tissue recovery.', 3075, 32, 'BPC-157 + TB-500.png', 'active', NULL),
+(7, 3, 'GHK-Cu (Copper Peptide)', 'A naturally occurring copper peptide studied for skin rejuvenation, collagen production, wound healing, and hair growth support. ', 975, 47, 'GHK-Cu.png', 'active', NULL),
+(8, 3, 'NAD+', 'A coenzyme involved in cellular energy production that is commonly used in wellness protocols to support healthy aging and mitochondrial function.', 2640, 0, 'NAD+.png', 'active', NULL),
+(9, 3, 'Glutathione', 'A powerful antioxidant that helps protect cells from oxidative stress, supports liver detoxification, and promotes brighter skin appearance.', 1470, 14, 'Glutathione.png', 'active', NULL),
+(10, 4, 'Ipamorelin', 'A selective growth hormone secretagogue that stimulates natural growth hormone release with minimal effect on cortisol and prolactin levels.', 1215, 55, 'Ipamorelin.png', 'active', NULL),
+(11, 4, 'CJC-1295 (with or without DAC)', 'A growth hormone-releasing hormone (GHRH) analog used to stimulate sustained growth hormone production for recovery and body composition goals.', 2775, 42, 'CJC-1295.png', 'active', NULL),
+(12, 4, 'Sermorelin', 'A synthetic peptide that encourages the pituitary gland to naturally release growth hormone, supporting recovery, lean muscle development, and healthy aging.', 2355, 33, 'Sermorelin.png', 'active', NULL);
 
 -- --------------------------------------------------------
 
