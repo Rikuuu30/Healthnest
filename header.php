@@ -71,6 +71,10 @@ if ($useSellerShell) {
                         <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 8 12 4l8.5 4-8.5 4-8.5-4Z"></path><path d="M3.5 8v8L12 20l8.5-4V8"></path><path d="M12 12v8"></path></svg></span>
                         <span class="nav-label">Inventory</span>
                     </a>
+                    <a class="<?php echo $currentPage === "seller_orders.php" ? "active" : ""; ?>" href="seller_orders.php">
+                        <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 4h12v16H6z"></path><path d="M9 8h6M9 12h6M9 16h4"></path></svg></span>
+                        <span class="nav-label">Orders</span>
+                    </a>
 
                     <span class="sidebar-section-label">Management</span>
                     <a class="<?php echo $currentPage === "manageusers.php" ? "active" : ""; ?>" href="manageusers.php">
@@ -137,6 +141,10 @@ if ($useSellerShell) {
                         <a class="cart-pill <?php echo $currentPage === "cart.php" ? "active" : ""; ?>" href="cart.php">
                             <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h2l1.8 10.6a2 2 0 0 0 2 1.7h7a2 2 0 0 0 2-1.6L20 9H6.3"></path><circle cx="9.5" cy="20" r="1.2"></circle><circle cx="17" cy="20" r="1.2"></circle></svg></span>
                             <span class="nav-label">Cart (<?php echo $cartCount; ?>)</span>
+                        </a>
+                        <a class="<?php echo $currentPage === "buyer_orders.php" ? "active" : ""; ?>" href="buyer_orders.php">
+                            <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 4h12v16H6z"></path><path d="M9 8h6M9 12h6M9 16h4"></path></svg></span>
+                            <span class="nav-label">My Orders</span>
                         </a>
                         <a class="<?php echo $currentPage === "profile.php" ? "active" : ""; ?>" href="profile.php">
                             <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"></circle><circle cx="12" cy="9.8" r="2.6"></circle><path d="M6.8 18.2c.9-2.1 2.9-3.4 5.2-3.4s4.3 1.3 5.2 3.4"></path></svg></span>
