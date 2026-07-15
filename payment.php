@@ -37,7 +37,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
             }
 
             $status = "paid";
-            $stmt = mysqli_prepare($conn, "INSERT INTO orders (user_id, total_amount, payment_method, shipping_address, status, created_at) VALUES (?, ?, ?, ?, ?, CURDATE())");
+            $stmt = mysqli_prepare($conn, "INSERT INTO orders (user_id, total_amount, payment_method, shipping_address, status, status_updated_at, created_at) VALUES (?, ?, ?, ?, ?, NOW(), CURDATE())");
             mysqli_stmt_bind_param($stmt, "idsss", $userId, $total, $pendingCheckout["payment_method"], $pendingCheckout["shipping_address"], $status);
             mysqli_stmt_execute($stmt);
             $orderId = mysqli_insert_id($conn);
@@ -62,13 +62,14 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
             }
 
             cartClear($conn, $userId);
+            addOrderHistory($conn, $orderId, $status, "Buyer placed this order.", $userId);
             logAudit($conn, $userId, "Create Order", "orders", $orderId, "Created simulated payment order #" . $orderId);
 
             mysqli_commit($conn);
             unset($_SESSION["pending_checkout"]);
 
             setFlash("success", "Payment simulated successfully. Order #" . $orderId . " has been created.");
-            redirect("index.php");
+            redirect("buyer_orders.php?id=" . (int) $orderId);
         } catch (Throwable $e) {
             mysqli_rollback($conn);
             $message = $e->getMessage();
