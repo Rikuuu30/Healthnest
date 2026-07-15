@@ -57,7 +57,6 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
     $price = (float) $values["price"];
     $stockQuantity = (int) $values["stock_quantity"];
     $status = strtolower($values["status"]);
-    $image = $values["image"] !== "" ? $values["image"] : "placeholder.jpg";
 
     if (!verifyCsrfToken($_POST["csrf_token"] ?? "")) {
         $message = "Your session expired. Please try again.";
@@ -72,25 +71,32 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
     } elseif (!in_array($status, ["active", "inactive"], true)) {
         $message = "Please select a valid status.";
     } else {
-        $stmt = mysqli_prepare($conn, "INSERT INTO products (category_id, product_name, description, price, stock_quantity, image, status, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, CURDATE())");
-        mysqli_stmt_bind_param(
-            $stmt,
-            "issdiss",
-            $categoryId,
-            $values["product_name"],
-            $values["description"],
-            $price,
-            $stockQuantity,
-            $image,
-            $status
-        );
-        mysqli_stmt_execute($stmt);
+        $imageUpload = handleProductImageUpload("product_image", "placeholder.jpg");
 
-        $productId = mysqli_insert_id($conn);
-        logAudit($conn, sessionUserId(), "Add Product", "products", $productId, "Added product: " . $values["product_name"]);
+        if (!$imageUpload["success"]) {
+            $message = $imageUpload["message"];
+        } else {
+            $image = $imageUpload["filename"];
+            $stmt = mysqli_prepare($conn, "INSERT INTO products (category_id, product_name, description, price, stock_quantity, image, status, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, CURDATE())");
+            mysqli_stmt_bind_param(
+                $stmt,
+                "issdiss",
+                $categoryId,
+                $values["product_name"],
+                $values["description"],
+                $price,
+                $stockQuantity,
+                $image,
+                $status
+            );
+            mysqli_stmt_execute($stmt);
 
-        setFlash("success", "Product added successfully.");
-        redirect("inventory.php");
+            $productId = mysqli_insert_id($conn);
+            logAudit($conn, sessionUserId(), "Add Product", "products", $productId, "Added product: " . $values["product_name"]);
+
+            setFlash("success", "Product added successfully.");
+            redirect("inventory.php");
+        }
     }
 }
 
@@ -113,8 +119,9 @@ require __DIR__ . "/header.php";
     <?php endif; ?>
 
     <div class="seller-form-layout">
-        <form class="seller-form" method="post" action="addproduct.php">
+        <form class="seller-form" method="post" action="addproduct.php" enctype="multipart/form-data">
             <?php echo csrfField(); ?>
+            <input id="image" type="hidden" name="image" value="<?php echo e($values["image"]); ?>">
             <div class="seller-form-heading">
                 <span class="panel-label">Product Setup</span>
                 <h3>Product Information</h3>
@@ -157,8 +164,19 @@ require __DIR__ . "/header.php";
                 </div>
 
                 <div class="full">
-                    <label for="image">Image Filename</label>
-                    <input id="image" type="text" name="image" value="<?php echo e($values["image"]); ?>" placeholder="placeholder.jpg">
+                    <label for="product_image">Product Image</label>
+                    <div class="product-upload-control">
+                        <div class="product-upload-preview" id="productImagePreview" aria-hidden="true">
+                            <span>No image</span>
+                            <img id="productImagePreviewImg" src="" alt="" hidden>
+                        </div>
+                        <div class="product-upload-copy">
+                            <strong id="productImageFileName">Choose a product image</strong>
+                            <span>JPG, PNG, or WebP up to 5 MB. Square images look best in the catalog.</span>
+                            <label class="product-upload-button" for="product_image">Browse Image</label>
+                        </div>
+                    </div>
+                    <input class="product-upload-input" id="product_image" type="file" name="product_image" accept="image/jpeg,image/png,image/webp">
                 </div>
 
                 <div class="full">
@@ -183,6 +201,7 @@ require __DIR__ . "/header.php";
                     <li id="checkPrice">Valid price entered</li>
                     <li id="checkStock">Opening stock set</li>
                     <li id="checkDescription">Buyer description written</li>
+                    <li id="checkImage">Custom image selected</li>
                 </ul>
                 <p id="duplicateNameNotice" class="assist-warning" hidden>A product with this name already exists.</p>
             </div>
@@ -245,6 +264,7 @@ const categoryInput = document.getElementById("category_id");
 const priceInput = document.getElementById("price");
 const stockInput = document.getElementById("stock_quantity");
 const imageInput = document.getElementById("image");
+const productImageInput = document.getElementById("product_image");
 const statusInput = document.getElementById("status");
 const descriptionInput = document.getElementById("description");
 const scoreText = document.getElementById("listingScore");
@@ -253,6 +273,9 @@ const duplicateNotice = document.getElementById("duplicateNameNotice");
 const descriptionCount = document.getElementById("descriptionCount");
 const openingStockValue = document.getElementById("openingStockValue");
 const imageReadiness = document.getElementById("imageReadiness");
+const productImageFileName = document.getElementById("productImageFileName");
+const productImagePreview = document.getElementById("productImagePreview");
+const productImagePreviewImg = document.getElementById("productImagePreviewImg");
 const launchStatusAdvice = document.getElementById("launchStatusAdvice");
 const applyRecommendedStatus = document.getElementById("applyRecommendedStatus");
 const useCategoryAveragePrice = document.getElementById("useCategoryAveragePrice");
@@ -265,6 +288,7 @@ const checks = {
     price: document.getElementById("checkPrice"),
     stock: document.getElementById("checkStock"),
     description: document.getElementById("checkDescription"),
+    image: document.getElementById("checkImage"),
 };
 
 function setCheck(element, isReady) {
@@ -281,6 +305,7 @@ function updateReadiness() {
     const price = Number(priceInput.value);
     const stock = Number(stockInput.value);
     const description = descriptionInput.value.trim();
+    const hasSelectedImage = productImageInput && productImageInput.files.length > 0;
 
     const states = [
         name.length >= 3,
@@ -288,6 +313,7 @@ function updateReadiness() {
         Number.isFinite(price) && price > 0,
         stockInput.value.trim() !== "" && Number.isInteger(stock) && stock >= 0,
         description.length >= 30,
+        hasSelectedImage,
     ];
 
     setCheck(checks.name, states[0]);
@@ -295,6 +321,7 @@ function updateReadiness() {
     setCheck(checks.price, states[2]);
     setCheck(checks.stock, states[3]);
     setCheck(checks.description, states[4]);
+    setCheck(checks.image, states[5]);
 
     const score = Math.round((states.filter(Boolean).length / states.length) * 100);
     scoreText.textContent = `${score}%`;
@@ -310,7 +337,8 @@ function updateLaunchPlanner(score, price, stock) {
     openingStockValue.textContent = hasValidInventoryValue ? moneyFormatter.format(price * stock) : "-";
 
     const imageName = imageInput.value.trim();
-    const usesPlaceholder = imageName === "" || imageName.toLowerCase() === "placeholder.jpg";
+    const hasSelectedImage = productImageInput && productImageInput.files.length > 0;
+    const usesPlaceholder = !hasSelectedImage && (imageName === "" || imageName.toLowerCase() === "placeholder.jpg");
     imageReadiness.textContent = usesPlaceholder ? "Placeholder" : "Custom";
 
     recommendedStatus = score >= 80 && !usesPlaceholder ? "active" : "inactive";
@@ -351,7 +379,11 @@ function updateCategoryIntel() {
     }
 }
 
-[productNameInput, categoryInput, priceInput, stockInput, imageInput, descriptionInput].forEach((input) => {
+[productNameInput, categoryInput, priceInput, stockInput, imageInput, productImageInput, descriptionInput].forEach((input) => {
+    if (!input) {
+        return;
+    }
+
     input.addEventListener("input", () => {
         updateReadiness();
         updateCategoryIntel();
@@ -361,6 +393,27 @@ function updateCategoryIntel() {
         updateCategoryIntel();
     });
 });
+
+function updateProductImagePreview() {
+    const file = productImageInput && productImageInput.files.length > 0 ? productImageInput.files[0] : null;
+
+    if (!file) {
+        productImageFileName.textContent = "Choose a product image";
+        productImagePreview.classList.remove("has-image");
+        productImagePreviewImg.hidden = true;
+        productImagePreviewImg.src = "";
+        return;
+    }
+
+    productImageFileName.textContent = file.name;
+    productImagePreview.classList.add("has-image");
+    productImagePreviewImg.src = URL.createObjectURL(file);
+    productImagePreviewImg.hidden = false;
+}
+
+if (productImageInput) {
+    productImageInput.addEventListener("change", updateProductImagePreview);
+}
 
 if (applyRecommendedStatus) {
     applyRecommendedStatus.addEventListener("click", () => {
