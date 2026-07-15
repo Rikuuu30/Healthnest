@@ -267,3 +267,38 @@ COMMIT;
 /*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;
 /*!40101 SET CHARACTER_SET_RESULTS=@OLD_CHARACTER_SET_RESULTS */;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
+
+
+-- =========================================
+-- Order Tracking Update
+-- =========================================
+
+ALTER TABLE orders
+  ADD COLUMN IF NOT EXISTS status_updated_at datetime DEFAULT NULL AFTER status;
+
+CREATE TABLE IF NOT EXISTS order_status_history (
+  history_id int(11) NOT NULL AUTO_INCREMENT,
+  order_id int(11) DEFAULT NULL,
+  status varchar(20) DEFAULT NULL,
+  note varchar(255) DEFAULT NULL,
+  updated_by int(11) DEFAULT NULL,
+  created_at datetime DEFAULT NULL,
+  PRIMARY KEY (history_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+UPDATE orders
+SET status = 'paid'
+WHERE status IS NULL OR status = '';
+
+UPDATE orders
+SET status_updated_at = NOW()
+WHERE status_updated_at IS NULL;
+
+INSERT INTO order_status_history (order_id, status, note, updated_by, created_at)
+SELECT o.order_id, o.status, 'Existing order status imported.', o.user_id, o.status_updated_at
+FROM orders o
+WHERE NOT EXISTS (
+  SELECT 1
+  FROM order_status_history h
+  WHERE h.order_id = o.order_id
+);
