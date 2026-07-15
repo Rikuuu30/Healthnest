@@ -318,6 +318,112 @@ function formatPrice($amount)
     return "PHP " . number_format((float) $amount, 2);
 }
 
+function productImageFilename($image)
+{
+    $image = str_replace("\\", "/", trim((string) $image));
+    $filename = basename($image);
+
+    return $filename !== "" ? $filename : "placeholder.jpg";
+}
+
+function handleProductImageUpload($fieldName, $currentImage = "placeholder.jpg")
+{
+    $currentImage = productImageFilename($currentImage);
+
+    if (empty($_FILES[$fieldName]) || (int) ($_FILES[$fieldName]["error"] ?? UPLOAD_ERR_NO_FILE) === UPLOAD_ERR_NO_FILE) {
+        return [
+            "success" => true,
+            "filename" => $currentImage,
+        ];
+    }
+
+    $uploadedImage = $_FILES[$fieldName];
+
+    if (!isset($uploadedImage["error"]) || is_array($uploadedImage["error"])) {
+        return [
+            "success" => false,
+            "message" => "The selected product image is not a valid upload.",
+        ];
+    }
+
+    if ((int) $uploadedImage["error"] !== UPLOAD_ERR_OK) {
+        return [
+            "success" => false,
+            "message" => "The product image could not be uploaded. Please try again.",
+        ];
+    }
+
+    if (!isset($uploadedImage["size"], $uploadedImage["tmp_name"]) || is_array($uploadedImage["size"]) || is_array($uploadedImage["tmp_name"])) {
+        return [
+            "success" => false,
+            "message" => "The selected product image is not a valid upload.",
+        ];
+    }
+
+    if ((int) $uploadedImage["size"] <= 0 || (int) $uploadedImage["size"] > 5 * 1024 * 1024) {
+        return [
+            "success" => false,
+            "message" => "The product image must be 5 MB or smaller.",
+        ];
+    }
+
+    if (!is_uploaded_file($uploadedImage["tmp_name"])) {
+        return [
+            "success" => false,
+            "message" => "The selected product image is not a valid upload.",
+        ];
+    }
+
+    $imageInfo = @getimagesize($uploadedImage["tmp_name"]);
+    $imageMime = $imageInfo["mime"] ?? "";
+    $detectedMime = class_exists("finfo")
+        ? (new finfo(FILEINFO_MIME_TYPE))->file($uploadedImage["tmp_name"])
+        : $imageMime;
+    $allowedImageTypes = [
+        "image/jpeg" => "jpg",
+        "image/png" => "png",
+        "image/webp" => "webp",
+    ];
+
+    if (!isset($allowedImageTypes[$imageMime]) || $detectedMime !== $imageMime) {
+        return [
+            "success" => false,
+            "message" => "Choose a JPG, PNG, or WebP image for the product.",
+        ];
+    }
+
+    if (($imageInfo[0] ?? 0) > 6000 || ($imageInfo[1] ?? 0) > 6000) {
+        return [
+            "success" => false,
+            "message" => "The product image dimensions are too large.",
+        ];
+    }
+
+    $uploadDirectory = __DIR__ . "/images/products";
+
+    if (!is_dir($uploadDirectory) && !mkdir($uploadDirectory, 0755, true)) {
+        return [
+            "success" => false,
+            "message" => "The product image folder could not be created.",
+        ];
+    }
+
+    $filename = "product-" . date("YmdHis") . "-" . bin2hex(random_bytes(5)) . "." . $allowedImageTypes[$imageMime];
+    $destination = $uploadDirectory . "/" . $filename;
+
+    if (!move_uploaded_file($uploadedImage["tmp_name"], $destination)) {
+        return [
+            "success" => false,
+            "message" => "The product image could not be saved. Please try again.",
+        ];
+    }
+
+    return [
+        "success" => true,
+        "filename" => $filename,
+    ];
+}
+
 // ---- Audit log helper ----
 
 function logAudit($conn, $userId, $action, $table, $recordId, $details)
