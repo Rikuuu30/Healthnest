@@ -166,6 +166,13 @@ $sellerStats = [
     "audit_events" => 0,
     "last_event" => "No activity yet",
 ];
+$buyerStats = [
+    "cart_items" => 0,
+    "cart_total" => 0,
+    "orders" => 0,
+    "active_orders" => 0,
+    "total_spent" => 0,
+];
 
 if ($nameParts) {
     $profileInitials = mb_strtoupper(mb_substr($nameParts[0], 0, 1));
@@ -203,6 +210,22 @@ if ($isSellerProfile) {
     if (!empty($sellerAuditStats["last_event"])) {
         $sellerStats["last_event"] = date("M j, Y", strtotime($sellerAuditStats["last_event"]));
     }
+} else {
+    $buyerStats["cart_items"] = cartCount($conn, (int) $user["id"]);
+    $buyerStats["cart_total"] = cartTotal($conn, (int) $user["id"]);
+
+    $buyerOrderResult = mysqli_query($conn, "
+        SELECT
+            COUNT(*) AS orders,
+            COALESCE(SUM(total_amount), 0) AS total_spent,
+            SUM(CASE WHEN LOWER(COALESCE(status, 'paid')) NOT IN ('delivered', 'cancelled') THEN 1 ELSE 0 END) AS active_orders
+        FROM orders
+        WHERE user_id = " . (int) $user["id"] . "
+    ");
+    $buyerOrderStats = $buyerOrderResult ? mysqli_fetch_assoc($buyerOrderResult) : [];
+    $buyerStats["orders"] = (int) ($buyerOrderStats["orders"] ?? 0);
+    $buyerStats["active_orders"] = (int) ($buyerOrderStats["active_orders"] ?? 0);
+    $buyerStats["total_spent"] = (float) ($buyerOrderStats["total_spent"] ?? 0);
 }
 
 $pageTitle = "My Profile";
@@ -276,6 +299,21 @@ require __DIR__ . "/header.php";
                             <strong><?php echo e($memberSinceText); ?></strong>
                         </div>
                     </div>
+                <?php else: ?>
+                    <div class="seller-profile-facts buyer-profile-facts">
+                        <div>
+                            <span>Email</span>
+                            <strong><?php echo e($values["email"]); ?></strong>
+                        </div>
+                        <div>
+                            <span>Contact</span>
+                            <strong><?php echo e($contactText); ?></strong>
+                        </div>
+                        <div>
+                            <span>Member Since</span>
+                            <strong><?php echo e($memberSinceText); ?></strong>
+                        </div>
+                    </div>
                 <?php endif; ?>
 
                 <div class="profile-completion-card">
@@ -318,10 +356,44 @@ require __DIR__ . "/header.php";
                         <a href="seller_changepassword.php">Password</a>
                     </div>
                 </section>
+            <?php else: ?>
+                <section class="profile-card seller-workspace-card buyer-workspace-card" aria-labelledby="buyer-workspace-title">
+                    <div class="profile-card-heading">
+                        <h2 id="buyer-workspace-title">Buyer Snapshot</h2>
+                        <p>Quick context for shopping, checkout, and tracking.</p>
+                    </div>
+                    <div class="seller-workspace-stats">
+                        <div>
+                            <span>Cart Items</span>
+                            <strong><?php echo $buyerStats["cart_items"]; ?></strong>
+                        </div>
+                        <div>
+                            <span>Cart Total</span>
+                            <strong><?php echo formatPrice($buyerStats["cart_total"]); ?></strong>
+                        </div>
+                        <div>
+                            <span>Orders</span>
+                            <strong><?php echo $buyerStats["orders"]; ?></strong>
+                        </div>
+                        <div>
+                            <span>Active Orders</span>
+                            <strong><?php echo $buyerStats["active_orders"]; ?></strong>
+                        </div>
+                        <div>
+                            <span>Total Spent</span>
+                            <strong><?php echo formatPrice($buyerStats["total_spent"]); ?></strong>
+                        </div>
+                    </div>
+                    <div class="seller-profile-actions">
+                        <a href="products.php">Products</a>
+                        <a href="cart.php">Cart</a>
+                        <a href="buyer_orders.php">Orders</a>
+                    </div>
+                </section>
             <?php endif; ?>
         </div>
 
-        <section class="profile-card profile-information-card" aria-labelledby="personal-information-title">
+        <section class="profile-card profile-information-card buyer-profile-information-card" aria-labelledby="personal-information-title">
             <div class="profile-card-heading">
                 <h2 id="personal-information-title">Personal Information</h2>
                 <p><?php echo $isSellerProfile
@@ -381,9 +453,8 @@ require __DIR__ . "/header.php";
                 <button class="profile-button profile-button-primary" type="submit">Save Profile</button>
             </div>
         </section>
-    </form>
 
-    <section class="profile-card profile-security-card" aria-labelledby="profile-security-title">
+    <section class="profile-card profile-security-card buyer-profile-security-card" aria-labelledby="profile-security-title">
         <div class="profile-card-heading">
             <h2 id="profile-security-title">Security</h2>
             <p>Manage your password separately from your profile details.</p>
@@ -393,6 +464,7 @@ require __DIR__ . "/header.php";
             <a class="profile-button profile-button-secondary" href="<?php echo $isSellerProfile ? "seller_changepassword.php" : "resetpassword.php"; ?>">Change Password</a>
         </div>
     </section>
+    </form>
 </main>
 
 <script>
