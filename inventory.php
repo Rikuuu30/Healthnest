@@ -349,14 +349,67 @@ require __DIR__ . "/header.php";
 <script>
 const exportRows = <?php echo json_encode($rowsForExport, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT); ?>;
 const exportBtn = document.getElementById("exportCsvBtn");
-const inventoryCompactToggle = document.getElementById("inventoryCompactToggle");
-const inventoryTable = document.querySelector(".inventory-table");
+const inventoryCompactKey = "healthnest:inventory-compact";
 
-if (inventoryCompactToggle && inventoryTable) {
+function bindInventoryControls(scope = document) {
+    const inventoryCompactToggle = scope.querySelector("#inventoryCompactToggle");
+    const inventoryTable = scope.querySelector(".inventory-table");
+
+    if (!inventoryCompactToggle || !inventoryTable) {
+        return;
+    }
+
+    const compactRows = localStorage.getItem(inventoryCompactKey) === "true";
+    inventoryCompactToggle.checked = compactRows;
+    inventoryTable.classList.toggle("is-compact", compactRows);
+
     inventoryCompactToggle.addEventListener("change", () => {
         inventoryTable.classList.toggle("is-compact", inventoryCompactToggle.checked);
+        localStorage.setItem(inventoryCompactKey, inventoryCompactToggle.checked ? "true" : "false");
     });
 }
+
+function bindInventoryPagination() {
+    const inventoryCard = document.querySelector(".inventory-list-card");
+
+    if (!inventoryCard) {
+        return;
+    }
+
+    inventoryCard.querySelectorAll(".pagination a").forEach((link) => {
+        link.addEventListener("click", async (event) => {
+            event.preventDefault();
+            const previousHeight = inventoryCard.offsetHeight;
+            inventoryCard.style.minHeight = `${previousHeight}px`;
+            inventoryCard.classList.add("is-loading");
+
+            try {
+                const response = await fetch(link.href, { headers: { "X-Requested-With": "fetch" } });
+                const html = await response.text();
+                const nextDocument = new DOMParser().parseFromString(html, "text/html");
+                const nextCard = nextDocument.querySelector(".inventory-list-card");
+
+                if (!nextCard) {
+                    window.location.href = link.href;
+                    return;
+                }
+
+                inventoryCard.innerHTML = nextCard.innerHTML;
+                history.pushState({}, "", link.href);
+                bindInventoryControls(inventoryCard);
+                bindInventoryPagination();
+            } catch (error) {
+                window.location.href = link.href;
+            } finally {
+                inventoryCard.classList.remove("is-loading");
+                inventoryCard.style.minHeight = "";
+            }
+        });
+    });
+}
+
+bindInventoryControls();
+bindInventoryPagination();
 
 if (exportBtn) {
     exportBtn.addEventListener("click", () => {
