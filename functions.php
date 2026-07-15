@@ -433,6 +433,119 @@ function logAudit($conn, $userId, $action, $table, $recordId, $details)
     mysqli_stmt_execute($stmt);
 }
 
+// ---- Order tracking helpers ----
+
+function orderStatusLabels()
+{
+    return [
+        "paid" => "To Pack",
+        "packed" => "To Ship",
+        "shipped" => "Shipped",
+        "out_delivery" => "Out for Delivery",
+        "delivered" => "Delivered",
+        "cancelled" => "Cancelled",
+    ];
+}
+
+function orderStatusLabel($status)
+{
+    $status = strtolower(trim((string) $status));
+    $labels = orderStatusLabels();
+
+    if (isset($labels[$status])) {
+        return $labels[$status];
+    }
+
+    return "To Pack";
+}
+
+function orderStatusClass($status)
+{
+    $status = strtolower(trim((string) $status));
+
+    if ($status === "") {
+        return "paid";
+    }
+
+    return preg_replace("/[^a-z0-9_-]/", "", $status);
+}
+
+function orderStatusStep($status)
+{
+    $status = strtolower(trim((string) $status));
+
+    if ($status === "packed") {
+        return 2;
+    }
+
+    if ($status === "shipped") {
+        return 3;
+    }
+
+    if ($status === "out_delivery") {
+        return 4;
+    }
+
+    if ($status === "delivered") {
+        return 5;
+    }
+
+    if ($status === "cancelled") {
+        return 0;
+    }
+
+    return 1;
+}
+
+function orderStatusMessage($status)
+{
+    $status = strtolower(trim((string) $status));
+
+    if ($status === "packed") {
+        return "Seller packed and prepared the order.";
+    }
+
+    if ($status === "shipped") {
+        return "Seller shipped the order.";
+    }
+
+    if ($status === "out_delivery") {
+        return "Seller handed the order to the courier.";
+    }
+
+    if ($status === "delivered") {
+        return "Order was marked as delivered.";
+    }
+
+    if ($status === "cancelled") {
+        return "Order was cancelled.";
+    }
+
+    return "Buyer placed this order.";
+}
+
+function addOrderHistory($conn, $orderId, $status, $note, $updatedBy)
+{
+    $stmt = mysqli_prepare($conn, "INSERT INTO order_status_history (order_id, status, note, updated_by, created_at) VALUES (?, ?, ?, ?, NOW())");
+    mysqli_stmt_bind_param($stmt, "issi", $orderId, $status, $note, $updatedBy);
+    mysqli_stmt_execute($stmt);
+}
+
+function formatDateTimeLabel($value)
+{
+    if (!$value) {
+        return "Pending";
+    }
+
+    $time = strtotime($value);
+
+    if (!$time) {
+        return e($value);
+    }
+
+    return date("M d, Y - g:i A", $time);
+}
+
 // ---- Cart helpers ----
 
 function cartAdd($conn, $userId, $productId, $qty)
