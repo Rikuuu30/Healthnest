@@ -78,8 +78,9 @@ require __DIR__ . "/header.php";
                     <?php while ($order = mysqli_fetch_assoc($ordersResult)): ?>
                         <li>
                             <strong>Order #<?php echo (int) $order["order_id"]; ?></strong>
-                            <p class="muted"><?php echo formatPrice($order["total_amount"]); ?> - <?php echo e(ucfirst($order["status"])); ?></p>
+                            <p class="muted"><?php echo formatPrice($order["total_amount"]); ?> - <?php echo e(orderStatusLabel($order["status"])); ?></p>
                             <p class="meta"><?php echo e($order["payment_method"]); ?> - <?php echo e($order["created_at"]); ?></p>
+                            <p class="meta"><a href="buyer_orders.php?id=<?php echo (int) $order["order_id"]; ?>">Track order</a></p>
                         </li>
                     <?php endwhile; ?>
                 </ul>
@@ -88,6 +89,7 @@ require __DIR__ . "/header.php";
             <?php endif; ?>
 
             <div class="actions">
+                <a class="secondary" href="buyer_orders.php">Track Orders</a>
                 <a class="secondary" href="profile.php">Manage Profile</a>
             </div>
         </div>
