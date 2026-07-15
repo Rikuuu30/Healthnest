@@ -36,6 +36,19 @@ if ($useSellerShell) {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?php echo e($pageTitle); ?> | HealthNest</title>
+    <?php if ($useSellerShell): ?>
+        <script>
+        (() => {
+            const key = `healthnest:seller-scroll:${window.location.pathname}`;
+            if (sessionStorage.getItem(key) !== null) {
+                document.documentElement.classList.add("seller-restoring-scroll");
+            }
+            if ("scrollRestoration" in history) {
+                history.scrollRestoration = "manual";
+            }
+        })();
+        </script>
+    <?php endif; ?>
     <link rel="stylesheet" href="asset/style.css?v=<?php echo filemtime(__DIR__ . "/asset/style.css"); ?>">
 </head>
 <body class="<?php echo e($bodyClass); ?>">
