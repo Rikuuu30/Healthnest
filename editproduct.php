@@ -86,7 +86,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
     $price = (float) $values["price"];
     $stockQuantity = (int) $values["stock_quantity"];
     $status = strtolower($values["status"]);
-    $image = $values["image"] !== "" ? $values["image"] : "placeholder.jpg";
+    $currentImage = productImageFilename($product["image"] ?? "placeholder.jpg");
 
     if (!verifyCsrfToken($_POST["csrf_token"] ?? "")) {
         $message = "Your session expired. Please try again.";
@@ -101,32 +101,42 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
     } elseif (!in_array($status, ["active", "inactive"], true)) {
         $message = "Please select a valid status.";
     } else {
-        $stmt = mysqli_prepare($conn, "UPDATE products SET category_id = ?, product_name = ?, description = ?, price = ?, stock_quantity = ?, image = ?, status = ? WHERE product_id = ?");
-        mysqli_stmt_bind_param(
-            $stmt,
-            "issdissi",
-            $categoryId,
-            $values["product_name"],
-            $values["description"],
-            $price,
-            $stockQuantity,
-            $image,
-            $status,
-            $productId
-        );
-        mysqli_stmt_execute($stmt);
+        $imageUpload = handleProductImageUpload("product_image", $currentImage);
 
-        $details = "Updated product: " . $values["product_name"];
-        if ((int) $product["stock_quantity"] !== $stockQuantity) {
-            $details .= " | Stock changed from " . (int) $product["stock_quantity"] . " to " . $stockQuantity;
-        }
-        if ((float) $product["price"] !== $price) {
-            $details .= " | Price changed from " . formatPrice($product["price"]) . " to " . formatPrice($price);
-        }
-        logAudit($conn, sessionUserId(), "Edit Product", "products", $productId, $details);
+        if (!$imageUpload["success"]) {
+            $message = $imageUpload["message"];
+        } else {
+            $image = $imageUpload["filename"];
+            $stmt = mysqli_prepare($conn, "UPDATE products SET category_id = ?, product_name = ?, description = ?, price = ?, stock_quantity = ?, image = ?, status = ? WHERE product_id = ?");
+            mysqli_stmt_bind_param(
+                $stmt,
+                "issdissi",
+                $categoryId,
+                $values["product_name"],
+                $values["description"],
+                $price,
+                $stockQuantity,
+                $image,
+                $status,
+                $productId
+            );
+            mysqli_stmt_execute($stmt);
 
-        setFlash("success", "Product updated successfully.");
-        redirect("inventory.php");
+            $details = "Updated product: " . $values["product_name"];
+            if ((int) $product["stock_quantity"] !== $stockQuantity) {
+                $details .= " | Stock changed from " . (int) $product["stock_quantity"] . " to " . $stockQuantity;
+            }
+            if ((float) $product["price"] !== $price) {
+                $details .= " | Price changed from " . formatPrice($product["price"]) . " to " . formatPrice($price);
+            }
+            if (productImageFilename($product["image"] ?? "") !== $image) {
+                $details .= " | Product image updated";
+            }
+            logAudit($conn, sessionUserId(), "Edit Product", "products", $productId, $details);
+
+            setFlash("success", "Product updated successfully.");
+            redirect("inventory.php");
+        }
     }
 }
 
@@ -136,6 +146,9 @@ $inventoryValue = $currentPrice * $currentStock;
 $sellThrough = ($unitsSold + $currentStock) > 0 ? round(($unitsSold / ($unitsSold + $currentStock)) * 100) : 0;
 $imageValue = trim((string) $values["image"]);
 $hasCustomImage = $imageValue !== "" && strtolower($imageValue) !== "placeholder.jpg";
+$currentImageFilename = productImageFilename($values["image"]);
+$currentImagePath = "images/products/" . $currentImageFilename;
+$currentImageExists = $hasCustomImage && is_file(__DIR__ . "/" . $currentImagePath);
 
 $pageTitle = "Edit Product";
 require __DIR__ . "/header.php";
@@ -158,8 +171,9 @@ require __DIR__ . "/header.php";
     <?php endif; ?>
 
     <div class="seller-form-layout edit-product-layout">
-        <form class="seller-form edit-product-form" method="post" action="editproduct.php?id=<?php echo (int) $productId; ?>">
+        <form class="seller-form edit-product-form" method="post" action="editproduct.php?id=<?php echo (int) $productId; ?>" enctype="multipart/form-data">
             <?php echo csrfField(); ?>
+            <input id="image" type="hidden" name="image" value="<?php echo e(productImageFilename($values["image"])); ?>">
             <div class="seller-form-heading">
                 <span class="panel-label">Product #<?php echo (int) $productId; ?></span>
                 <h3>Product Information</h3>
@@ -222,8 +236,19 @@ require __DIR__ . "/header.php";
                 </div>
 
                 <div class="full">
-                    <label for="image">Image Filename</label>
-                    <input id="image" type="text" name="image" value="<?php echo e($values["image"]); ?>" placeholder="placeholder.jpg">
+                    <label for="product_image">Product Image</label>
+                    <div class="product-upload-control">
+                        <div class="product-upload-preview <?php echo $currentImageExists ? "has-image" : ""; ?>" id="productImagePreview" aria-hidden="true">
+                            <span><?php echo $currentImageExists ? "Current" : "No image"; ?></span>
+                            <img id="productImagePreviewImg" src="<?php echo $currentImageExists ? e($currentImagePath) : ""; ?>" alt="" <?php echo $currentImageExists ? "" : "hidden"; ?>>
+                        </div>
+                        <div class="product-upload-copy">
+                            <strong id="productImageFileName"><?php echo $currentImageExists ? e($currentImageFilename) : "Choose a replacement image"; ?></strong>
+                            <span>JPG, PNG, or WebP up to 5 MB. Leave empty to keep the current image.</span>
+                            <label class="product-upload-button" for="product_image">Browse Image</label>
+                        </div>
+                    </div>
+                    <input class="product-upload-input" id="product_image" type="file" name="product_image" accept="image/jpeg,image/png,image/webp">
                 </div>
 
                 <div class="full">
@@ -322,6 +347,7 @@ const categoryInput = document.getElementById("category_id");
 const priceInput = document.getElementById("price");
 const stockInput = document.getElementById("stock_quantity");
 const imageInput = document.getElementById("image");
+const productImageInput = document.getElementById("product_image");
 const statusInput = document.getElementById("status");
 const descriptionInput = document.getElementById("description");
 const scoreText = document.getElementById("listingScore");
@@ -331,6 +357,9 @@ const descriptionCount = document.getElementById("descriptionCount");
 const openingStockValue = document.getElementById("openingStockValue");
 const summaryInventoryValue = document.getElementById("summaryInventoryValue");
 const imageReadiness = document.getElementById("imageReadiness");
+const productImageFileName = document.getElementById("productImageFileName");
+const productImagePreview = document.getElementById("productImagePreview");
+const productImagePreviewImg = document.getElementById("productImagePreviewImg");
 const launchStatusAdvice = document.getElementById("launchStatusAdvice");
 const applyRecommendedStatus = document.getElementById("applyRecommendedStatus");
 const useCategoryAveragePrice = document.getElementById("useCategoryAveragePrice");
@@ -360,7 +389,8 @@ function updateReadiness() {
     const stock = Number(stockInput.value);
     const description = descriptionInput.value.trim();
     const imageName = imageInput.value.trim();
-    const usesPlaceholder = imageName === "" || imageName.toLowerCase() === "placeholder.jpg";
+    const hasSelectedImage = productImageInput && productImageInput.files.length > 0;
+    const usesPlaceholder = !hasSelectedImage && (imageName === "" || imageName.toLowerCase() === "placeholder.jpg");
 
     const states = [
         name.length >= 3,
@@ -430,7 +460,11 @@ function updateCategoryIntel() {
     }
 }
 
-[productNameInput, categoryInput, priceInput, stockInput, imageInput, descriptionInput].forEach((input) => {
+[productNameInput, categoryInput, priceInput, stockInput, imageInput, productImageInput, descriptionInput].forEach((input) => {
+    if (!input) {
+        return;
+    }
+
     input.addEventListener("input", () => {
         updateReadiness();
         updateCategoryIntel();
@@ -440,6 +474,23 @@ function updateCategoryIntel() {
         updateCategoryIntel();
     });
 });
+
+function updateProductImagePreview() {
+    const file = productImageInput && productImageInput.files.length > 0 ? productImageInput.files[0] : null;
+
+    if (!file) {
+        return;
+    }
+
+    productImageFileName.textContent = file.name;
+    productImagePreview.classList.add("has-image");
+    productImagePreviewImg.src = URL.createObjectURL(file);
+    productImagePreviewImg.hidden = false;
+}
+
+if (productImageInput) {
+    productImageInput.addEventListener("change", updateProductImagePreview);
+}
 
 document.querySelectorAll("[data-stock-adjust]").forEach((button) => {
     button.addEventListener("click", () => {
