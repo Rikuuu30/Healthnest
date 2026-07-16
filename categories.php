@@ -29,17 +29,9 @@ require __DIR__ . "/header.php";
 
     <div class="category-grid buyer-category-grid">
         <?php while ($category = mysqli_fetch_assoc($result)): ?>
-            <?php 
-            // Categories don't have an image column in the DB, so we format the name
-            $catImageName = preg_replace('/[^a-zA-Z0-9_-]/', '_', $category["category_name"]) . ".png";
-            $catImagePath = "images/categories/" . $catImageName;
-            ?>
             <article class="card category-card buyer-category-card">
-                <div class="category-image-wrap">
-                    <img src="<?php echo htmlspecialchars($catImagePath); ?>" 
-                         alt="<?php echo e($category["category_name"]); ?>" 
-                         class="category-image"
-                         onerror="this.src='images/placeholder.png'; this.onerror=null;">
+                <div class="category-visual" aria-hidden="true">
+                    <span><?php echo e(substr((string) $category["category_name"], 0, 1)); ?></span>
                 </div>
                 <h3>
                     <a href="products.php?category=<?php echo (int) $category["category_id"]; ?>">
@@ -50,9 +42,11 @@ require __DIR__ . "/header.php";
                 <div class="buyer-category-metrics">
                     <div>
                         <span>Price Range</span>
-                        <strong>
+                        <strong class="category-price-range">
                             <?php if ((int) $category["product_count"] > 0): ?>
-                                <?php echo formatPrice($category["min_price"]); ?> - <?php echo formatPrice($category["max_price"]); ?>
+                                <span><?php echo formatPrice($category["min_price"]); ?></span>
+                                <span class="range-separator">to</span>
+                                <span><?php echo formatPrice($category["max_price"]); ?></span>
                             <?php else: ?>
                                 No active pricing
                             <?php endif; ?>
