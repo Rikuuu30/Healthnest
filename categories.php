@@ -1,5 +1,4 @@
 <?php
-
 require_once __DIR__ . "/init.php";
 if (isLoggedIn() && isAdmin()) {
     redirect("seller_dashboard.php");
