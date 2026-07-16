@@ -14842,6 +14842,119 @@ body.page-categories .buyer-card-footer a {
     }
 }
 
+/* Payment page cleanup */
+body.page-payment.buyer-page .payment-page-main {
+    width: min(1180px, calc(100% - 36px));
+}
+
+body.page-payment.buyer-page .payment-page-header {
+    margin-bottom: 22px;
+}
+
+body.page-payment.buyer-page .payment-review-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(320px, 390px);
+    gap: 24px;
+    align-items: start;
+}
+
+body.page-payment.buyer-page .payment-review-card,
+body.page-payment.buyer-page .payment-confirm-card {
+    display: grid;
+    gap: 16px;
+    padding: 26px;
+    border-radius: 18px;
+    border: 1px solid rgba(104, 201, 255, 0.22);
+    background:
+        radial-gradient(circle at 92% 8%, rgba(101, 199, 255, 0.12), transparent 30%),
+        linear-gradient(180deg, rgba(255, 255, 255, 0.065), rgba(255, 255, 255, 0.025)),
+        rgba(8, 19, 34, 0.94);
+}
+
+body.page-payment.buyer-page .payment-review-card h3,
+body.page-payment.buyer-page .payment-confirm-card h3 {
+    margin: 0;
+    color: #ffffff;
+}
+
+body.page-payment.buyer-page .payment-total-card {
+    padding: 20px;
+    border-radius: 16px;
+    border: 1px solid rgba(104, 201, 255, 0.18);
+    background: rgba(255, 255, 255, 0.055);
+}
+
+body.page-payment.buyer-page .payment-total-card span,
+body.page-payment.buyer-page .payment-detail-list span {
+    display: block;
+    color: var(--buyer-muted);
+    font-size: 12px;
+    font-weight: 900;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+}
+
+body.page-payment.buyer-page .payment-total-card strong {
+    display: block;
+    margin-top: 8px;
+    color: #ffffff;
+    font-size: clamp(30px, 4vw, 46px);
+    line-height: 1;
+}
+
+body.page-payment.buyer-page .payment-total-card p {
+    margin: 10px 0 0;
+}
+
+body.page-payment.buyer-page .payment-detail-list {
+    display: grid;
+    gap: 12px;
+}
+
+body.page-payment.buyer-page .payment-detail-list div {
+    padding: 14px;
+    border-radius: 14px;
+    border: 1px solid rgba(104, 201, 255, 0.16);
+    background: rgba(255, 255, 255, 0.04);
+}
+
+body.page-payment.buyer-page .payment-detail-list strong {
+    display: block;
+    margin-top: 6px;
+    color: #ffffff;
+    line-height: 1.45;
+    overflow-wrap: anywhere;
+}
+
+body.page-payment.buyer-page .payment-confirm-card {
+    position: sticky;
+    top: 104px;
+}
+
+body.page-payment.buyer-page .payment-confirm-card .form-actions {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 12px;
+    margin-top: 0;
+}
+
+body.page-payment.buyer-page .payment-confirm-card .form-actions button,
+body.page-payment.buyer-page .payment-confirm-card .form-actions a {
+    width: 100%;
+    min-height: 50px;
+    border-radius: 12px;
+}
+
+@media (max-width: 980px) {
+    body.page-payment.buyer-page .payment-review-grid {
+        grid-template-columns: 1fr;
+    }
+
+    body.page-payment.buyer-page .payment-confirm-card {
+        position: static;
+    }
+}
+
 /* Final cart table alignment pass */
 body.page-cart.buyer-page .buyer-cart-table {
     overflow: visible !important;
