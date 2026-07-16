@@ -14673,7 +14673,7 @@ body.page-cart.buyer-page .recommended-card-actions button {
 /* Product detail quantity alignment */
 body.page-product.buyer-page .buyer-purchase-card form label {
     margin: 0 0 8px;
-    text-align: left;
+    text-align: center;
 }
 
 body.page-product.buyer-page .quantity-stepper {
@@ -14718,6 +14718,128 @@ body.page-product.buyer-page .buyer-purchase-card button[type="submit"] {
     min-height: 48px;
     justify-content: center;
     text-align: center;
+}
+
+/* Keep Categories page consistent for guests and buyers */
+body.page-categories .buyer-page-header {
+    margin-bottom: 22px !important;
+    padding: 24px !important;
+    border-radius: 16px !important;
+    border: 1px solid rgba(104, 201, 255, 0.2) !important;
+    background:
+        linear-gradient(135deg, rgba(47, 140, 255, 0.11), rgba(255, 255, 255, 0.035)),
+        rgba(8, 19, 34, 0.9) !important;
+}
+
+body.page-categories .buyer-category-grid {
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)) !important;
+    gap: 22px;
+    align-items: stretch;
+}
+
+body.page-categories .buyer-category-card {
+    display: flex;
+    height: 100%;
+    min-height: 0;
+    flex-direction: column;
+    gap: 14px !important;
+    padding: 16px !important;
+    overflow: hidden;
+}
+
+body.page-categories .category-visual {
+    display: grid;
+    height: 74px;
+    place-items: center;
+    border: 1px solid rgba(104, 201, 255, 0.2);
+    border-radius: 14px;
+    background:
+        radial-gradient(circle at 50% 0%, rgba(101, 199, 255, 0.18), transparent 58%),
+        rgba(255, 255, 255, 0.045);
+}
+
+body.page-categories .category-visual span {
+    display: grid;
+    width: 42px;
+    height: 42px;
+    place-items: center;
+    border-radius: 50%;
+    color: #07111d;
+    background: linear-gradient(135deg, #2f8cff, #65c7ff);
+    font-size: 20px;
+    font-weight: 900;
+}
+
+body.page-categories .buyer-category-card h3,
+body.page-categories .buyer-category-card p {
+    min-height: 0 !important;
+    margin: 0 !important;
+}
+
+body.page-categories .buyer-category-card h3 a {
+    color: #ffffff;
+}
+
+body.page-categories .buyer-category-metrics {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 10px !important;
+}
+
+body.page-categories .buyer-category-metrics div {
+    display: grid;
+    min-height: 78px !important;
+    align-content: start;
+    padding: 12px !important;
+    border-radius: 12px;
+}
+
+body.page-categories .category-price-range {
+    display: grid !important;
+    gap: 2px;
+}
+
+body.page-categories .category-price-range span {
+    display: block;
+    white-space: nowrap;
+}
+
+body.page-categories .category-price-range .range-separator {
+    color: rgba(232, 247, 255, 0.58);
+    font-size: 11px;
+    font-weight: 900;
+    line-height: 1;
+    text-transform: uppercase;
+}
+
+body.page-categories .buyer-card-footer {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 12px !important;
+    align-items: stretch;
+    margin-top: auto;
+}
+
+body.page-categories .buyer-card-footer .badge,
+body.page-categories .buyer-card-footer a {
+    display: inline-flex;
+    width: 100%;
+    min-width: 0 !important;
+    height: 58px !important;
+    min-height: 58px !important;
+    align-items: center;
+    justify-content: center;
+    padding: 10px 12px !important;
+    border-radius: 12px !important;
+    box-sizing: border-box;
+    text-align: center;
+}
+
+@media (max-width: 720px) {
+    body.page-categories .buyer-category-metrics,
+    body.page-categories .buyer-card-footer {
+        grid-template-columns: 1fr !important;
+    }
 }
 
 /* Final cart table alignment pass */
