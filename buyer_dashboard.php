@@ -12,13 +12,7 @@ $userId = sessionUserId();
 $user = currentUser($conn);
 $cartCount = cartCount($conn, $userId);
 $cartTotal = cartTotal($conn, $userId);
-$featuredProducts = array_slice(getProducts($conn), 0, 3);
-foreach (getProducts($conn) as $catalogProduct) {
-    if (strcasecmp((string) $catalogProduct["product_name"], "Ipamorelin") === 0) {
-        $featuredProducts[2] = $catalogProduct;
-        break;
-    }
-}
+$featuredProducts = array_slice(getFeaturedProducts($conn), 0, 3);
 $categories = getCategories($conn);
 
 $orderStatsResult = mysqli_query($conn, "
