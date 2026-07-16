@@ -12,7 +12,7 @@ $userId = sessionUserId();
 $user = currentUser($conn);
 $cartCount = cartCount($conn, $userId);
 $cartTotal = cartTotal($conn, $userId);
-$featuredProducts = array_slice(getProducts($conn), 0, 4);
+$featuredProducts = array_slice(getProducts($conn), 0, 3);
 $categories = getCategories($conn);
 
 $orderStatsResult = mysqli_query($conn, "
@@ -169,3 +169,4 @@ require __DIR__ . "/header.php";
 </main>
 
 <?php require __DIR__ . "/footer.php"; ?>
+                
