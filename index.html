@@ -1,102 +1,68 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Home | HealthNest</title>
-    <link rel="stylesheet" href="asset/style.css">
-</head>
-<body class="page-index">
-    <header class="site-header">
-        <div class="topbar">
-            <a class="brand" href="index.php">
-                <img src="assets/healthnest-logo.png" alt="HealthNest logo">
-            </a>
-            <div class="topbar-note">Premium Wellness Portal</div>
+<?php
+require_once __DIR__ . "/init.php";
 
-            <nav class="main-nav">
-                <a data-icon="H" class="active" href="index.html">Home</a>
-                <a data-icon="P" href="products.php">Products</a>
-                <a data-icon="C" href="categories.php">Categories</a>
-                <a data-icon="A" href="about.php">About</a>
-                <a data-icon="L" href="login.php">Login</a>
-                <a data-icon="R" href="register.php">Register</a>
-            </nav>
-        </div>
-    </header>
+if (isLoggedIn()) {
+    redirect(dashboardUrl());
+}
 
-    <main class="page-main">
-        <div class="page-hero">
-            <div class="hero-copy">
-                <div class="eyebrow">HealthNest Wellness Shop</div>
-                <h1>Wellness products organized for easy shopping.</h1>
-                <p class="lead">Browse recovery, metabolic health, anti-aging, and performance support products. Buyer accounts can add items to cart and complete a simulated checkout.</p>
+$pageTitle = "Home";
+require __DIR__ . "/header.php";
 
-                <div class="actions">
-                    <a href="products.php">View All Products</a>
-                    <a class="secondary" href="categories.php">Browse Categories</a>
-                </div>
-            </div>
+$featuredProducts = array_slice(getProducts($conn), 0, 3);
+foreach (getProducts($conn) as $catalogProduct) {
+    if (strcasecmp((string) $catalogProduct["product_name"], "Ipamorelin") === 0) {
+        $featuredProducts[2] = $catalogProduct;
+        break;
+    }
+}
+?>
 
-            <div class="hero-panel">
-                <h3>Shop by Goal</h3>
-                <p>Explore curated HealthNest product categories for a focused wellness shopping experience.</p>
-                <ul class="quick-list">
-                    <li><a href="products.php">Recovery Support</a></li>
-                    <li><a href="products.php">Metabolic Health</a></li>
-                    <li><a href="products.php">Anti-Aging</a></li>
-                    <li><a href="products.php">Performance</a></li>
-                </ul>
+<main class="page-main">
+    <div class="page-hero">
+        <div class="hero-copy">
+            <div class="eyebrow">HealthNest Wellness Shop</div>
+            <h1>Wellness products organized for easy shopping.</h1>
+            <p class="lead">Browse recovery, metabolic health, anti-aging, and performance support products. Buyer accounts can add items to cart and complete a simulated checkout.</p>
+
+            <div class="actions">
+                <a href="products.php">View All Products</a>
+                <a class="secondary" href="categories.php">Browse Categories</a>
             </div>
         </div>
 
-        <div class="admin-bar">
-            <div>
-                <div class="eyebrow">Featured</div>
-                <h2>Featured Products</h2>
-            </div>
+        <div class="hero-panel">
+            <h3>Shop by Goal</h3>
+            <p>Explore the product categories already stored in your HealthNest database.</p>
+            <ul class="quick-list">
+                <?php foreach (array_slice(getCategories($conn), 0, 4) as $category): ?>
+                    <li>
+                        <a href="products.php?category=<?php echo (int) $category["category_id"]; ?>">
+                            <?php echo e($category["category_name"]); ?>
+                        </a>
+                    </li>
+                <?php endforeach; ?>
+            </ul>
         </div>
+    </div>
 
-        <div class="product-grid">
+    <div class="admin-bar">
+        <div>
+            <div class="eyebrow">Featured</div>
+            <h2>Featured Products</h2>
+        </div>
+    </div>
+
+    <div class="product-grid">
+        <?php foreach ($featuredProducts as $p): ?>
             <div class="card product-card">
-                <span class="badge">Recovery Support</span>
-                <h3>CJC-1295</h3>
-                <p class="price">PHP 2,450.00</p>
-                <p class="muted">Stock: 25</p>
-                <a href="products.php">View Product</a>
+                <span class="badge"><?php echo e($p["category_name"] ?? "Uncategorized"); ?></span>
+                <h3><?php echo e($p["product_name"]); ?></h3>
+                <p class="price"><?php echo formatPrice($p["price"]); ?></p>
+                <p class="muted">Stock: <?php echo (int) $p["stock_quantity"]; ?></p>
+                <a href="product.php?id=<?php echo (int) $p["product_id"]; ?>">View Product</a>
             </div>
+        <?php endforeach; ?>
+    </div>
+</main>
 
-            <div class="card product-card">
-                <span class="badge">Metabolic Health</span>
-                <h3>BPC-157</h3>
-                <p class="price">PHP 1,980.00</p>
-                <p class="muted">Stock: 18</p>
-                <a href="products.php">View Product</a>
-            </div>
-
-            <div class="card product-card">
-                <span class="badge">Anti-Aging</span>
-                <h3>Ipamorelin</h3>
-                <p class="price">PHP 2,350.00</p>
-                <p class="muted">Stock: 12</p>
-                <a href="products.php">View Product</a>
-            </div>
-
-            <div class="card product-card">
-                <span class="badge">Performance</span>
-                <h3>TB-500</h3>
-                <p class="price">PHP 2,250.00</p>
-                <p class="muted">Stock: 10</p>
-                <a href="products.php">View Product</a>
-            </div>
-        </div>
-    </main>
-
-    <footer class="site-footer">
-        <div class="footer-inner">
-            <strong>HealthNest</strong>
-            <p>&copy; 2026 Seller and buyer wellness shop portal.</p>
-        </div>
-    </footer>
-</body>
-</html>
+<?php require __DIR__ . "/footer.php"; ?>
