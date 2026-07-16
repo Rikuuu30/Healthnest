@@ -22,6 +22,22 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
             }
         }
 
+        if ($action === "add") {
+            $productId = filter_input(INPUT_POST, "product_id", FILTER_VALIDATE_INT);
+            $product = $productId ? getProductById($conn, $productId) : null;
+
+            if (!$product || strtolower((string) $product["status"]) !== "active") {
+                setFlash("error", "Product is no longer available.");
+            } elseif ((int) $product["stock_quantity"] <= 0) {
+                setFlash("error", "Product is out of stock.");
+            } else {
+                cartAdd($conn, $userId, $productId, 1);
+                setFlash("success", $product["product_name"] . " was added to your cart.");
+            }
+
+            redirect("cart.php");
+        }
+
         if ($action === "update") {
             foreach (($_POST["quantity"] ?? []) as $productId => $quantity) {
                 $productId = (int) $productId;
@@ -178,12 +194,20 @@ require __DIR__ . "/header.php";
                         <?php $recommendedImage = "images/products/" . productImageFilename($recommended["image"] ?? ""); ?>
                         <article class="card product-card buyer-product-card">
                             <div class="product-image-wrap">
-                                <img src="<?php echo e($recommendedImage); ?>" alt="<?php echo e($recommended["product_name"]); ?>" class="product-image" onerror="this.src='images/placeholder.png'; this.onerror=null;">
+                                <img src="<?php echo e($recommendedImage); ?>" alt="<?php echo e($recommended["product_name"]); ?>" class="product-image" onerror="this.closest('.product-image-wrap').classList.add('image-missing'); this.remove();">
                             </div>
                             <span class="badge"><?php echo e($recommended["category_name"] ?? "Uncategorized"); ?></span>
                             <h3><?php echo e($recommended["product_name"]); ?></h3>
                             <p class="price"><?php echo formatPrice($recommended["price"]); ?></p>
-                            <a href="product.php?id=<?php echo (int) $recommended["product_id"]; ?>">View Product</a>
+                            <div class="recommended-card-actions">
+                                <a href="product.php?id=<?php echo (int) $recommended["product_id"]; ?>">View Product</a>
+                                <form method="post" action="cart.php">
+                                    <?php echo csrfField(); ?>
+                                    <input type="hidden" name="action" value="add">
+                                    <input type="hidden" name="product_id" value="<?php echo (int) $recommended["product_id"]; ?>">
+                                    <button type="submit">Add to Cart</button>
+                                </form>
+                            </div>
                         </article>
                     <?php endforeach; ?>
                 </div>
