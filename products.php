@@ -167,17 +167,14 @@ require __DIR__ . "/header.php";
         <div class="product-grid">
             <?php foreach ($products as $product): ?>
                 <?php 
-                // 1. Get the exact filename from the database 'image' column
-                $dbImage = !empty($product["image"]) ? $product["image"] : "placeholder.jpg";
-                // 2. Prepend the folder path
-                $imagePath = "images/products/" . $dbImage;
+                $imagePath = "images/products/" . productImageFilename($product["image"] ?? "");
                 ?>
                 <article class="card product-card buyer-product-card" data-product-card data-name="<?php echo e($product["product_name"]); ?>" data-category="<?php echo e($product["category_name"] ?? "Uncategorized"); ?>" data-price="<?php echo e(formatPrice($product["price"])); ?>" data-stock="<?php echo (int) $product["stock_quantity"]; ?>">
                     <div class="product-image-wrap">
                         <img src="<?php echo htmlspecialchars($imagePath); ?>" 
                              alt="<?php echo e($product["product_name"]); ?>" 
                              class="product-image"
-                             onerror="this.src='images/placeholder.png'; this.onerror=null;">
+                             onerror="this.closest('.product-image-wrap').classList.add('image-missing'); this.remove();">
                     </div>
                     <span class="badge product-category-label"><?php echo e($product["category_name"] ?? "Uncategorized"); ?></span>
                     <h3><?php echo e($product["product_name"]); ?></h3>
