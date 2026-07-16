@@ -7,6 +7,14 @@ if (isLoggedIn()) {
 
 $pageTitle = "Home";
 require __DIR__ . "/header.php";
+
+$featuredProducts = array_slice(getProducts($conn), 0, 3);
+foreach (getProducts($conn) as $catalogProduct) {
+    if (strcasecmp((string) $catalogProduct["product_name"], "Ipamorelin") === 0) {
+        $featuredProducts[2] = $catalogProduct;
+        break;
+    }
+}
 ?>
 
 <main class="page-main">
@@ -45,10 +53,7 @@ require __DIR__ . "/header.php";
     </div>
 
     <div class="product-grid">
-        <?php
-        $featured = array_slice(getProducts($conn), 0, 4);
-        foreach ($featured as $p):
-        ?>
+        <?php foreach ($featuredProducts as $p): ?>
             <div class="card product-card">
                 <span class="badge"><?php echo e($p["category_name"] ?? "Uncategorized"); ?></span>
                 <h3><?php echo e($p["product_name"]); ?></h3>
