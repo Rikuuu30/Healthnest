@@ -16349,3 +16349,140 @@ body.page-products .product-card.buyer-product-card .buyer-card-actions > form >
     padding: 0 12px !important;
     line-height: 1 !important;
 }
+
+/* Final buyer catalog polish: compact tools, adaptive cards, and balanced actions */
+body.page-products.buyer-page .buyer-shop-assist {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) auto !important;
+    align-items: center !important;
+    gap: 12px !important;
+    padding: 10px 14px !important;
+    margin-bottom: 16px !important;
+    border-radius: 12px !important;
+}
+
+body.page-products.buyer-page .buyer-shop-assist .buyer-kicker {
+    margin-bottom: 3px !important;
+    font-size: 10px !important;
+    line-height: 1.1 !important;
+}
+
+body.page-products.buyer-page .buyer-shop-assist strong {
+    font-size: 13px !important;
+    line-height: 1.25 !important;
+}
+
+body.page-products.buyer-page .buyer-shop-assist p {
+    max-width: 680px !important;
+    margin-top: 2px !important;
+    font-size: 11px !important;
+    line-height: 1.35 !important;
+}
+
+body.page-products.buyer-page .buyer-shop-assist-points {
+    flex: initial !important;
+    justify-content: flex-end !important;
+    gap: 6px !important;
+}
+
+body.page-products.buyer-page .buyer-shop-assist-points span {
+    min-height: 26px !important;
+    padding: 5px 8px !important;
+    border-radius: 999px !important;
+    font-size: 10px !important;
+    line-height: 1 !important;
+    white-space: nowrap !important;
+}
+
+body.page-products .product-card.buyer-product-card {
+    height: auto !important;
+    min-height: 0 !important;
+    gap: 12px !important;
+    overflow: visible !important;
+}
+
+body.page-products .product-card.buyer-product-card .product-image-wrap {
+    margin-bottom: 4px !important;
+}
+
+body.page-products .product-card.buyer-product-card h3 {
+    min-height: 0 !important;
+}
+
+body.page-products .product-card.buyer-product-card p:not(.price):not(.muted) {
+    flex: 0 0 auto !important;
+    min-height: 0 !important;
+    margin: 0 !important;
+    overflow: visible !important;
+}
+
+body.page-products .product-card.buyer-product-card .price {
+    flex: 0 0 auto !important;
+    margin: 2px 0 0 !important;
+    font-size: 25px !important;
+    line-height: 1.05 !important;
+    overflow-wrap: anywhere !important;
+}
+
+body.page-products .product-card.buyer-product-card .muted {
+    margin: -2px 0 0 !important;
+}
+
+body.page-products .product-card.buyer-product-card .buyer-card-actions {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    align-items: stretch !important;
+    gap: 10px !important;
+    margin-top: auto !important;
+}
+
+body.page-products .product-card.buyer-product-card .buyer-card-actions > .buyer-compare-control,
+body.page-products .product-card.buyer-product-card .buyer-card-actions > a.button.secondary,
+body.page-products .product-card.buyer-product-card .buyer-card-actions > .quick-add-login,
+body.page-products .product-card.buyer-product-card .buyer-card-actions > form,
+body.page-products .product-card.buyer-product-card .buyer-card-actions > .stock-badge {
+    width: 100% !important;
+    height: 44px !important;
+    min-height: 44px !important;
+    max-height: 44px !important;
+    margin: 0 !important;
+    padding: 0 12px !important;
+    border-radius: 12px !important;
+    box-sizing: border-box !important;
+    align-self: stretch !important;
+    justify-self: stretch !important;
+    justify-content: center !important;
+    text-align: center !important;
+    white-space: nowrap !important;
+}
+
+body.page-products .product-card.buyer-product-card .buyer-card-actions > a.button.secondary {
+    display: inline-flex !important;
+    align-items: center !important;
+    border: 1px solid rgba(104, 201, 255, 0.18) !important;
+    background: rgba(255, 255, 255, 0.055) !important;
+    color: #e8f7ff !important;
+    font-size: 13px !important;
+    font-weight: 900 !important;
+    line-height: 1 !important;
+}
+
+body.page-products .product-card.buyer-product-card .buyer-card-actions > form > button {
+    width: 100% !important;
+}
+
+@media (max-width: 900px) {
+    body.page-products.buyer-page .buyer-shop-assist {
+        grid-template-columns: 1fr !important;
+        align-items: start !important;
+    }
+
+    body.page-products.buyer-page .buyer-shop-assist-points {
+        justify-content: flex-start !important;
+    }
+}
+
+@media (max-width: 420px) {
+    body.page-products .product-card.buyer-product-card .buyer-card-actions {
+        grid-template-columns: 1fr !important;
+    }
+}
