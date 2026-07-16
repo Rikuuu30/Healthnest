@@ -13,6 +13,12 @@ $user = currentUser($conn);
 $cartCount = cartCount($conn, $userId);
 $cartTotal = cartTotal($conn, $userId);
 $featuredProducts = array_slice(getProducts($conn), 0, 3);
+foreach (getProducts($conn) as $catalogProduct) {
+    if (strcasecmp((string) $catalogProduct["product_name"], "Ipamorelin") === 0) {
+        $featuredProducts[2] = $catalogProduct;
+        break;
+    }
+}
 $categories = getCategories($conn);
 
 $orderStatsResult = mysqli_query($conn, "
@@ -111,7 +117,7 @@ require __DIR__ . "/header.php";
                     <?php $imagePath = "images/products/" . productImageFilename($product["image"] ?? ""); ?>
                     <article class="buyer-product-card">
                         <div class="product-image-wrap">
-                            <img src="<?php echo e($imagePath); ?>" alt="<?php echo e($product["product_name"]); ?>" class="product-image" onerror="this.src='images/placeholder.png'; this.onerror=null;">
+                            <img src="<?php echo e($imagePath); ?>" alt="<?php echo e($product["product_name"]); ?>" class="product-image" onerror="this.closest('.product-image-wrap').classList.add('image-missing'); this.remove();">
                         </div>
                         <span class="badge"><?php echo e($product["category_name"] ?? "Uncategorized"); ?></span>
                         <h3><?php echo e($product["product_name"]); ?></h3>
