@@ -9,13 +9,7 @@ $pageTitle = "Home";
 require __DIR__ . "/header.php";
 
 $homeCategories = getCategories($conn);
-$featuredProducts = array_slice(getProducts($conn), 0, 3);
-foreach (getProducts($conn) as $catalogProduct) {
-    if (strcasecmp((string) $catalogProduct["product_name"], "Ipamorelin") === 0) {
-        $featuredProducts[2] = $catalogProduct;
-        break;
-    }
-}
+$featuredProducts = getFeaturedProducts($conn);
 ?>
 
 <main class="page-main">
