@@ -15214,7 +15214,6 @@ body.page-cart.buyer-page .buyer-cart-table tr:nth-child(odd) td {
 body.page-cart.buyer-page .buyer-cart-table td:first-child {
     min-width: 0;
 }
-
 body.page-cart.buyer-page .buyer-cart-table td:nth-child(3),
 body.page-cart.buyer-page .buyer-cart-table td:nth-child(5) {
     font-weight: 800;
