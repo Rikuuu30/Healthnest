@@ -12,8 +12,9 @@ $userId = sessionUserId();
 $user = currentUser($conn);
 $cartCount = cartCount($conn, $userId);
 $cartTotal = cartTotal($conn, $userId);
-$featuredProducts = array_slice(getProducts($conn), 0, 3);
-foreach (getProducts($conn) as $catalogProduct) {
+$catalogProducts = getProducts($conn);
+$featuredProducts = array_slice($catalogProducts, 0, 4);
+foreach ($catalogProducts as $catalogProduct) {
     if (strcasecmp((string) $catalogProduct["product_name"], "Ipamorelin") === 0) {
         $featuredProducts[2] = $catalogProduct;
         break;
