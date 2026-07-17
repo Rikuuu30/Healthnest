@@ -72,7 +72,7 @@ $pageTitle = "Products";
 require __DIR__ . "/header.php";
 ?>
 <main class="page-main">
-    <section class="seller-page-header buyer-page-header">
+   <section class="seller-page-header buyer-page-header">
         <div>
             <span class="panel-label">Buyer Catalog</span>
             <h2>Products</h2>
@@ -82,7 +82,7 @@ require __DIR__ . "/header.php";
     </section>
 
     <section class="dashboard-stat-strip buyer-stat-strip">
-        <div>
+        <div>   
             <span>Results</span>
             <strong><?php echo count($products); ?></strong>
         </div>
@@ -111,33 +111,71 @@ require __DIR__ . "/header.php";
                 <input id="q" type="search" name="q" value="<?php echo e($search); ?>" placeholder="Search product, category, or description">
             </div>
             <div>
-                <label for="category">Category</label>
-                <select id="category" name="category">
-                    <option value="">All Categories</option>
-                    <?php foreach ($categories as $category): ?>
-                        <option value="<?php echo (int) $category["category_id"]; ?>" <?php echo $categoryId === (int) $category["category_id"] ? "selected" : ""; ?>>
-                            <?php echo e($category["category_name"]); ?>
-                        </option>
-                    <?php endforeach; ?>
-                </select>
+                <label id="category-label" for="category">Category</label>
+                <div class="role-select catalog-filter-select" data-product-select>
+                    <select id="category" name="category" aria-labelledby="category-label">
+                        <option value="">All Categories</option>
+                        <?php foreach ($categories as $category): ?>
+                            <option value="<?php echo (int) $category["category_id"]; ?>" <?php echo $categoryId === (int) $category["category_id"] ? "selected" : ""; ?>>
+                                <?php echo e($category["category_name"]); ?>
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
+                    <button class="role-select-trigger" type="button" aria-haspopup="listbox" aria-expanded="false" aria-labelledby="category-label category-select-value">
+                        <strong id="category-select-value"><?php echo $selectedCategory ? e($selectedCategory["category_name"]) : "All Categories"; ?></strong>
+                        <span class="role-select-chevron" aria-hidden="true"></span>
+                    </button>
+                    <div class="role-select-menu" role="listbox" aria-labelledby="category-label" hidden>
+                        <button type="button" class="role-select-option" role="option" data-select-value="" aria-selected="<?php echo $categoryId ? "false" : "true"; ?>">All Categories</button>
+                        <?php foreach ($categories as $category): ?>
+                            <button type="button" class="role-select-option" role="option" data-select-value="<?php echo (int) $category["category_id"]; ?>" aria-selected="<?php echo $categoryId === (int) $category["category_id"] ? "true" : "false"; ?>">
+                                <?php echo e($category["category_name"]); ?>
+                            </button>
+                        <?php endforeach; ?>
+                    </div>
+                </div>
             </div>
             <div>
-                <label for="stock">Stock</label>
-                <select id="stock" name="stock">
-                    <option value="all" <?php echo $stockFilter === "all" ? "selected" : ""; ?>>All Stock</option>
-                    <option value="available" <?php echo $stockFilter === "available" ? "selected" : ""; ?>>Available</option>
-                    <option value="low" <?php echo $stockFilter === "low" ? "selected" : ""; ?>>Low Stock</option>
-                    <option value="out" <?php echo $stockFilter === "out" ? "selected" : ""; ?>>Out of Stock</option>
-                </select>
+                <label id="stock-label" for="stock">Stock</label>
+                <div class="role-select catalog-filter-select" data-product-select>
+                    <select id="stock" name="stock" aria-labelledby="stock-label">
+                        <option value="all" <?php echo $stockFilter === "all" ? "selected" : ""; ?>>All Stock</option>
+                        <option value="available" <?php echo $stockFilter === "available" ? "selected" : ""; ?>>Available</option>
+                        <option value="low" <?php echo $stockFilter === "low" ? "selected" : ""; ?>>Low Stock</option>
+                        <option value="out" <?php echo $stockFilter === "out" ? "selected" : ""; ?>>Out of Stock</option>
+                    </select>
+                    <button class="role-select-trigger" type="button" aria-haspopup="listbox" aria-expanded="false" aria-labelledby="stock-label stock-select-value">
+                        <strong id="stock-select-value"><?php echo e($stockFilter === "available" ? "Available" : ($stockFilter === "low" ? "Low Stock" : ($stockFilter === "out" ? "Out of Stock" : "All Stock"))); ?></strong>
+                        <span class="role-select-chevron" aria-hidden="true"></span>
+                    </button>
+                    <div class="role-select-menu" role="listbox" aria-labelledby="stock-label" hidden>
+                        <button type="button" class="role-select-option" role="option" data-select-value="all" aria-selected="<?php echo $stockFilter === "all" ? "true" : "false"; ?>">All Stock</button>
+                        <button type="button" class="role-select-option" role="option" data-select-value="available" aria-selected="<?php echo $stockFilter === "available" ? "true" : "false"; ?>">Available</button>
+                        <button type="button" class="role-select-option" role="option" data-select-value="low" aria-selected="<?php echo $stockFilter === "low" ? "true" : "false"; ?>">Low Stock</button>
+                        <button type="button" class="role-select-option" role="option" data-select-value="out" aria-selected="<?php echo $stockFilter === "out" ? "true" : "false"; ?>">Out of Stock</button>
+                    </div>
+                </div>
             </div>
             <div>
-                <label for="sort">Sort</label>
-                <select id="sort" name="sort">
-                    <option value="name" <?php echo $sort === "name" ? "selected" : ""; ?>>Name</option>
-                    <option value="price_low" <?php echo $sort === "price_low" ? "selected" : ""; ?>>Price: Low to High</option>
-                    <option value="price_high" <?php echo $sort === "price_high" ? "selected" : ""; ?>>Price: High to Low</option>
-                    <option value="stock" <?php echo $sort === "stock" ? "selected" : ""; ?>>Stock</option>
-                </select>
+                <label id="sort-label" for="sort">Sort</label>
+                <div class="role-select catalog-filter-select" data-product-select>
+                    <select id="sort" name="sort" aria-labelledby="sort-label">
+                        <option value="name" <?php echo $sort === "name" ? "selected" : ""; ?>>Name</option>
+                        <option value="price_low" <?php echo $sort === "price_low" ? "selected" : ""; ?>>Price: Low to High</option>
+                        <option value="price_high" <?php echo $sort === "price_high" ? "selected" : ""; ?>>Price: High to Low</option>
+                        <option value="stock" <?php echo $sort === "stock" ? "selected" : ""; ?>>Stock</option>
+                    </select>
+                    <button class="role-select-trigger" type="button" aria-haspopup="listbox" aria-expanded="false" aria-labelledby="sort-label sort-select-value">
+                        <strong id="sort-select-value"><?php echo e($sort === "price_low" ? "Price: Low to High" : ($sort === "price_high" ? "Price: High to Low" : ($sort === "stock" ? "Stock" : "Name"))); ?></strong>
+                        <span class="role-select-chevron" aria-hidden="true"></span>
+                    </button>
+                    <div class="role-select-menu" role="listbox" aria-labelledby="sort-label" hidden>
+                        <button type="button" class="role-select-option" role="option" data-select-value="name" aria-selected="<?php echo $sort === "name" ? "true" : "false"; ?>">Name</button>
+                        <button type="button" class="role-select-option" role="option" data-select-value="price_low" aria-selected="<?php echo $sort === "price_low" ? "true" : "false"; ?>">Price: Low to High</button>
+                        <button type="button" class="role-select-option" role="option" data-select-value="price_high" aria-selected="<?php echo $sort === "price_high" ? "true" : "false"; ?>">Price: High to Low</button>
+                        <button type="button" class="role-select-option" role="option" data-select-value="stock" aria-selected="<?php echo $sort === "stock" ? "true" : "false"; ?>">Stock</button>
+                    </div>
+                </div>
             </div>
         </div>
         <div class="filter-actions">
@@ -219,6 +257,115 @@ require __DIR__ . "/header.php";
 </main>
 <script>
 (() => {
+    document.querySelectorAll("[data-product-select]").forEach((selectRoot) => {
+        const nativeSelect = selectRoot.querySelector("select");
+        const trigger = selectRoot.querySelector(".role-select-trigger");
+        const menu = selectRoot.querySelector(".role-select-menu");
+        const value = selectRoot.querySelector(".role-select-trigger strong");
+        const options = Array.from(selectRoot.querySelectorAll(".role-select-option"));
+
+        if (!nativeSelect || !trigger || !menu || !value || options.length === 0) {
+            return;
+        }
+
+        const syncSelect = (selectedValue) => {
+            const selectedOption = options.find((option) => option.dataset.selectValue === selectedValue);
+
+            if (!selectedOption) {
+                return;
+            }
+
+            nativeSelect.value = selectedValue;
+            value.textContent = selectedOption.textContent.trim();
+            options.forEach((option) => {
+                option.setAttribute("aria-selected", option === selectedOption ? "true" : "false");
+            });
+        };
+
+        const openMenu = () => {
+            menu.hidden = false;
+            trigger.setAttribute("aria-expanded", "true");
+            selectRoot.classList.add("is-open");
+
+            const selectedOption = options.find((option) => option.getAttribute("aria-selected") === "true");
+            (selectedOption || options[0]).focus();
+        };
+
+        const closeMenu = (restoreFocus) => {
+            menu.hidden = true;
+            trigger.setAttribute("aria-expanded", "false");
+            selectRoot.classList.remove("is-open");
+
+            if (restoreFocus) {
+                trigger.focus();
+            }
+        };
+
+        selectRoot.classList.add("custom-select-ready");
+        nativeSelect.tabIndex = -1;
+        nativeSelect.setAttribute("aria-hidden", "true");
+        syncSelect(nativeSelect.value);
+
+        trigger.addEventListener("click", () => {
+            if (menu.hidden) {
+                openMenu();
+            } else {
+                closeMenu(false);
+            }
+        });
+
+        trigger.addEventListener("keydown", (event) => {
+            if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+                event.preventDefault();
+                openMenu();
+            }
+        });
+
+        options.forEach((option, index) => {
+            option.addEventListener("click", () => {
+                syncSelect(option.dataset.selectValue);
+                nativeSelect.dispatchEvent(new Event("change", { bubbles: true }));
+                closeMenu(true);
+            });
+
+            option.addEventListener("keydown", (event) => {
+                let nextIndex = index;
+
+                if (event.key === "ArrowDown") {
+                    nextIndex = (index + 1) % options.length;
+                } else if (event.key === "ArrowUp") {
+                    nextIndex = (index - 1 + options.length) % options.length;
+                } else if (event.key === "Home") {
+                    nextIndex = 0;
+                } else if (event.key === "End") {
+                    nextIndex = options.length - 1;
+                } else if (event.key === "Escape") {
+                    event.preventDefault();
+                    closeMenu(true);
+                    return;
+                } else if (event.key === "Tab") {
+                    closeMenu(false);
+                    return;
+                } else {
+                    return;
+                }
+
+                event.preventDefault();
+                options[nextIndex].focus();
+            });
+        });
+
+        nativeSelect.addEventListener("change", () => {
+            syncSelect(nativeSelect.value);
+        });
+
+        document.addEventListener("click", (event) => {
+            if (!menu.hidden && !selectRoot.contains(event.target)) {
+                closeMenu(false);
+            }
+        });
+    });
+
     const tray = document.getElementById("buyerCompareTray");
     const list = document.getElementById("buyerCompareList");
     const clear = document.getElementById("buyerCompareClear");
