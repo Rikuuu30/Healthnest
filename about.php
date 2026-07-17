@@ -35,9 +35,13 @@ require __DIR__ . "/header.php";
             <h3>What Buyers Can Do</h3>
             <div class="buyer-feature-grid">
                 <div><strong>Browse</strong><span>Search products and filter by category or stock.</span></div>
+                <div><strong>Compare</strong><span>Review price, category, and stock details before opening a product.</span></div>
                 <div><strong>Cart</strong><span>Update quantities, remove items, and prepare checkout.</span></div>
+                <div><strong>Checkout</strong><span>Confirm delivery details and complete a simulated payment flow.</span></div>
                 <div><strong>Orders</strong><span>Track seller status updates and order history.</span></div>
+                <div><strong>Guidance</strong><span>Use category paths and product notes to move through the catalog faster.</span></div>
                 <div><strong>Profile</strong><span>Maintain delivery, contact, and account details.</span></div>
+                <div><strong>Security</strong><span>Manage account access through login sessions and password tools.</span></div>
             </div>
         </div>
 
