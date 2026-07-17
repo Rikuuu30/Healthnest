@@ -9,7 +9,7 @@ $pageTitle = "Home";
 require __DIR__ . "/header.php";
 
 $homeCategories = getCategories($conn);
-$featuredProducts = getFeaturedProducts($conn);
+$featuredProducts = array_slice(getProducts($conn), 0, 4);
 ?>
 
 <main class="page-main">
@@ -25,18 +25,16 @@ $featuredProducts = getFeaturedProducts($conn);
             </div>
         </div>
 
-        <div class="hero-panel">
-            <h3>Shop by Goal</h3>
-            <p>Explore the product categories already stored in your HealthNest database.</p>
-            <ul class="quick-list">
-                <?php foreach (array_slice($homeCategories, 0, 4) as $category): ?>
-                    <li>
-                        <a href="products.php?category=<?php echo (int) $category["category_id"]; ?>">
-                            <?php echo e($category["category_name"]); ?>
-                        </a>
-                    </li>
+        <div class="hero-panel index-category-panel">
+            <span class="buyer-kicker">Shop by Goal</span>
+            <h3>Wellness Categories</h3>
+            <div class="buyer-chip-row stacked">
+                <?php foreach ($homeCategories as $category): ?>
+                    <a href="products.php?category=<?php echo (int) $category["category_id"]; ?>">
+                        <?php echo e($category["category_name"]); ?>
+                    </a>
                 <?php endforeach; ?>
-            </ul>
+            </div>
         </div>
     </div>
 
@@ -50,7 +48,7 @@ $featuredProducts = getFeaturedProducts($conn);
     <div class="product-grid buyer-product-grid index-featured-grid">
         <?php foreach ($featuredProducts as $p): ?>
             <?php $imagePath = "images/products/" . productImageFilename($p["image"] ?? ""); ?>
-            <article class="buyer-product-card index-featured-card">
+            <article class="card product-card buyer-product-card index-featured-card">
                 <div class="product-image-wrap">
                     <img src="<?php echo e($imagePath); ?>" alt="<?php echo e($p["product_name"]); ?>" class="product-image" onerror="this.closest('.product-image-wrap').classList.add('image-missing'); this.remove();">
                 </div>
