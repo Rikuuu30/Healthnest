@@ -63,11 +63,24 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
 $items = cartItems($conn, $userId);
 $total = cartTotal($conn, $userId);
-$itemCount = array_sum(array_map(fn($item) => (int) $item["quantity"], $items));
-$stockWarnings = count(array_filter($items, fn($item) => (int) $item["quantity"] >= (int) $item["stock_quantity"]));
-$cartProductIds = array_map(fn($item) => (int) $item["product_id"], $items);
-$recommendedProducts = array_values(array_filter(getProducts($conn), fn($product) => !in_array((int) $product["product_id"], $cartProductIds, true) && (int) $product["stock_quantity"] > 0));
+$itemCount = array_sum(array_map(function ($item) {
+    return (int) $item["quantity"];
+}, $items));
+$stockWarnings = count(array_filter($items, function ($item) {
+    return (int) $item["quantity"] >= (int) $item["stock_quantity"];
+}));
+$cartProductIds = array_map(function ($item) {
+    return (int) $item["product_id"];
+}, $items);
+$recommendedProducts = array_values(array_filter(getProducts($conn), function ($product) use ($cartProductIds) {
+    return !in_array((int) $product["product_id"], $cartProductIds, true) && (int) $product["stock_quantity"] > 0;
+}));
 $recommendedProducts = array_slice($recommendedProducts, 0, 3);
+
+function cartPriceHtml($amount)
+{
+    return '<span class="buyer-price"><span class="buyer-price-sign">PHP</span> <span class="buyer-price-amount">' . e(number_format((float) $amount, 2)) . '</span></span>';
+}
 
 $pageTitle = "Cart";
 require __DIR__ . "/header.php";
@@ -98,7 +111,7 @@ require __DIR__ . "/header.php";
         </div>
         <div>
             <span>Cart Total</span>
-            <strong><?php echo formatPrice($total); ?></strong>
+            <strong><?php echo cartPriceHtml($total); ?></strong>
         </div>
     </section>
 
@@ -139,12 +152,12 @@ require __DIR__ . "/header.php";
                             <tr>
                                 <td><strong><?php echo e($item["product_name"]); ?></strong></td>
                                 <td><?php echo e($item["category_name"] ?? "Uncategorized"); ?></td>
-                                <td><?php echo formatPrice($item["price"]); ?></td>
+                                <td><?php echo cartPriceHtml($item["price"]); ?></td>
                                 <td>
                                     <input type="number" name="quantity[<?php echo (int) $item["product_id"]; ?>]" value="<?php echo (int) $item["quantity"]; ?>" min="0" max="<?php echo (int) $item["stock_quantity"]; ?>" data-cart-quantity>
                                     <p class="meta">Available: <?php echo (int) $item["stock_quantity"]; ?></p>
                                 </td>
-                                <td><?php echo formatPrice($item["subtotal"]); ?></td>
+                                <td><?php echo cartPriceHtml($item["subtotal"]); ?></td>
                                 <td>
                                     <button type="submit" name="remove_product_id" value="<?php echo (int) $item["product_id"]; ?>">Remove</button>
                                 </td>
@@ -157,7 +170,7 @@ require __DIR__ . "/header.php";
             <aside class="card buyer-cart-summary">
                 <span class="panel-label">Checkout Summary</span>
                 <h3>Order Snapshot</h3>
-                <div class="buyer-summary-total"><?php echo formatPrice($total); ?></div>
+                <div class="buyer-summary-total"><?php echo cartPriceHtml($total); ?></div>
                 <div class="buyer-cart-summary-stats">
                     <div>
                         <span>Items</span>
@@ -197,7 +210,7 @@ require __DIR__ . "/header.php";
                             </div>
                             <span class="badge"><?php echo e($recommended["category_name"] ?? "Uncategorized"); ?></span>
                             <h3><?php echo e($recommended["product_name"]); ?></h3>
-                            <p class="price"><?php echo formatPrice($recommended["price"]); ?></p>
+                            <p class="price"><?php echo cartPriceHtml($recommended["price"]); ?></p>
                             <div class="recommended-card-actions">
                                 <a href="product.php?id=<?php echo (int) $recommended["product_id"]; ?>">View Product</a>
                                 <form method="post" action="cart.php">
