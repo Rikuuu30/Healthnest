@@ -22,15 +22,91 @@ if (count($items) === 0) {
 
 $message = "";
 $total = cartTotal($conn, $userId);
-$itemCount = array_sum(array_map(fn($item) => (int) $item["quantity"], $items));
+$itemCount = array_sum(array_map(function ($item) {
+    return (int) $item["quantity"];
+}, $items));
+
+function paymentTableExists($conn, $tableName)
+{
+    $stmt = mysqli_prepare($conn, "SELECT COUNT(*) AS table_count FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ?");
+
+    if (!$stmt) {
+        return false;
+    }
+
+    mysqli_stmt_bind_param($stmt, "s", $tableName);
+    mysqli_stmt_execute($stmt);
+    $row = mysqli_fetch_assoc(mysqli_stmt_get_result($stmt));
+
+    return (int) ($row["table_count"] ?? 0) > 0;
+}
+
+function paymentColumnExists($conn, $tableName, $columnName)
+{
+    $stmt = mysqli_prepare($conn, "SELECT COUNT(*) AS column_count FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = ?");
+
+    if (!$stmt) {
+        return false;
+    }
+
+    mysqli_stmt_bind_param($stmt, "ss", $tableName, $columnName);
+    mysqli_stmt_execute($stmt);
+    $row = mysqli_fetch_assoc(mysqli_stmt_get_result($stmt));
+
+    return (int) ($row["column_count"] ?? 0) > 0;
+}
+
+function paymentPrepare($conn, $sql)
+{
+    $stmt = mysqli_prepare($conn, $sql);
+
+    if (!$stmt) {
+        throw new Exception("Payment could not be processed. Please check the database setup and try again.");
+    }
+
+    return $stmt;
+}
+
+function paymentEnsureOrderTrackingSchema($conn)
+{
+    if (!paymentColumnExists($conn, "orders", "status_updated_at")) {
+        if (!mysqli_query($conn, "ALTER TABLE orders ADD COLUMN status_updated_at datetime DEFAULT NULL AFTER status")) {
+            throw new Exception("Payment could not update the order tracking setup. Please check the database setup and try again.");
+        }
+    }
+
+    if (!paymentTableExists($conn, "order_status_history")) {
+        $historySql = "
+            CREATE TABLE order_status_history (
+                history_id int(11) NOT NULL AUTO_INCREMENT,
+                order_id int(11) DEFAULT NULL,
+                status varchar(20) DEFAULT NULL,
+                note varchar(255) DEFAULT NULL,
+                updated_by int(11) DEFAULT NULL,
+                created_at datetime DEFAULT NULL,
+                PRIMARY KEY (history_id)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+        ";
+
+        if (!mysqli_query($conn, $historySql)) {
+            throw new Exception("Payment could not create the order history setup. Please check the database setup and try again.");
+        }
+    }
+}
 
 if ($_SERVER["REQUEST_METHOD"] === "POST") {
     if (!verifyCsrfToken($_POST["csrf_token"] ?? "")) {
         $message = "Your session expired. Please try again.";
     } else {
-        mysqli_begin_transaction($conn);
+        $transactionStarted = false;
 
         try {
+            if (!@mysqli_begin_transaction($conn)) {
+                throw new Exception("Payment could not start. Please try again.");
+            }
+
+            $transactionStarted = true;
+
             foreach ($items as $item) {
                 if (strtolower((string) $item["status"]) !== "active" || (int) $item["quantity"] > (int) $item["stock_quantity"]) {
                     throw new Exception("One or more cart items are unavailable or above stock.");
@@ -38,8 +114,17 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
             }
 
             $status = "paid";
-            $stmt = mysqli_prepare($conn, "INSERT INTO orders (user_id, total_amount, payment_method, shipping_address, status, status_updated_at, created_at) VALUES (?, ?, ?, ?, ?, NOW(), CURDATE())");
-            mysqli_stmt_bind_param($stmt, "idsss", $userId, $total, $pendingCheckout["payment_method"], $pendingCheckout["shipping_address"], $status);
+            paymentEnsureOrderTrackingSchema($conn);
+            $hasStatusUpdatedAt = paymentColumnExists($conn, "orders", "status_updated_at");
+
+            if ($hasStatusUpdatedAt) {
+                $stmt = paymentPrepare($conn, "INSERT INTO orders (user_id, total_amount, payment_method, shipping_address, status, status_updated_at, created_at) VALUES (?, ?, ?, ?, ?, NOW(), CURDATE())");
+                mysqli_stmt_bind_param($stmt, "idsss", $userId, $total, $pendingCheckout["payment_method"], $pendingCheckout["shipping_address"], $status);
+            } else {
+                $stmt = paymentPrepare($conn, "INSERT INTO orders (user_id, total_amount, payment_method, shipping_address, status, created_at) VALUES (?, ?, ?, ?, ?, CURDATE())");
+                mysqli_stmt_bind_param($stmt, "idsss", $userId, $total, $pendingCheckout["payment_method"], $pendingCheckout["shipping_address"], $status);
+            }
+
             mysqli_stmt_execute($stmt);
             $orderId = mysqli_insert_id($conn);
 
@@ -49,11 +134,11 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                 $subtotal = $price * $quantity;
                 $productId = (int) $item["product_id"];
 
-                $insertItem = mysqli_prepare($conn, "INSERT INTO order_items (order_id, product_id, quantity, price, subtotal) VALUES (?, ?, ?, ?, ?)");
+                $insertItem = paymentPrepare($conn, "INSERT INTO order_items (order_id, product_id, quantity, price, subtotal) VALUES (?, ?, ?, ?, ?)");
                 mysqli_stmt_bind_param($insertItem, "iiidd", $orderId, $productId, $quantity, $price, $subtotal);
                 mysqli_stmt_execute($insertItem);
 
-                $stockUpdate = mysqli_prepare($conn, "UPDATE products SET stock_quantity = stock_quantity - ? WHERE product_id = ? AND stock_quantity >= ?");
+                $stockUpdate = paymentPrepare($conn, "UPDATE products SET stock_quantity = stock_quantity - ? WHERE product_id = ? AND stock_quantity >= ?");
                 mysqli_stmt_bind_param($stockUpdate, "iii", $quantity, $productId, $quantity);
                 mysqli_stmt_execute($stockUpdate);
 
@@ -63,7 +148,11 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
             }
 
             cartClear($conn, $userId);
-            addOrderHistory($conn, $orderId, $status, "Buyer placed this order.", $userId);
+
+            if (paymentTableExists($conn, "order_status_history")) {
+                addOrderHistory($conn, $orderId, $status, "Buyer placed this order.", $userId);
+            }
+
             logAudit($conn, $userId, "Create Order", "orders", $orderId, "Created simulated payment order #" . $orderId);
 
             mysqli_commit($conn);
@@ -72,7 +161,10 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
             setFlash("success", "Payment simulated successfully. Order #" . $orderId . " has been created.");
             redirect("buyer_orders.php?id=" . (int) $orderId);
         } catch (Throwable $e) {
-            mysqli_rollback($conn);
+            if ($transactionStarted) {
+                mysqli_rollback($conn);
+            }
+
             $message = $e->getMessage();
         }
     }
