@@ -65,3 +65,5 @@ $featuredProducts = array_slice(getProducts($conn), 0, 4);
 </main>
 
 <?php require __DIR__ . "/footer.php"; ?>
+
+
