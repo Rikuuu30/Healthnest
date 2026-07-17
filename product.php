@@ -46,8 +46,7 @@ $pageTitle = $product["product_name"];
 require __DIR__ . "/header.php";
 
 // Get image directly from the database
-$dbImage = !empty($product["image"]) ? $product["image"] : "placeholder.jpg";
-$imagePath = "images/products/" . $dbImage;
+$imagePath = "images/products/" . productImageFilename($product["image"] ?? "placeholder.jpg");
 $relatedProducts = [];
 if (!empty($product["category_id"])) {
     $relatedProducts = array_values(array_filter(getProducts($conn, (int) $product["category_id"]), function ($related) use ($productId) {
