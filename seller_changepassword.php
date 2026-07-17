@@ -67,7 +67,7 @@ require __DIR__ . "/header.php";
     <?php endif; ?>
 
     <div class="admin-password-layout">
-        <form class="seller-form admin-password-form" method="post" action="admin_changepassword.php">
+        <form class="seller-form admin-password-form" method="post" action="seller_changepassword.php">
             <?php echo csrfField(); ?>
 
             <div class="seller-form-heading">
