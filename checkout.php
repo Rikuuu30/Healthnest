@@ -10,6 +10,11 @@ $items = cartItems($conn, $userId);
 $message = "";
 $shippingAddress = $user["address"] ?? "";
 $paymentMethod = "Simulated Card";
+$paymentOptions = [
+    "Simulated Card" => "Simulated Card",
+    "Cash on Delivery" => "Cash on Delivery",
+    "Bank Transfer" => "Bank Transfer",
+];
 
 if (count($items) === 0) {
     setFlash("error", "Your cart is empty.");
@@ -31,7 +36,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
         $message = "Your session expired. Please try again.";
     } elseif ($shippingAddress === "") {
         $message = "Please enter a shipping address.";
-    } elseif (!in_array($paymentMethod, ["Simulated Card", "Cash on Delivery", "Bank Transfer"], true)) {
+    } elseif (!array_key_exists($paymentMethod, $paymentOptions)) {
         $message = "Please select a payment method.";
     } else {
         $_SESSION["pending_checkout"] = [
@@ -43,7 +48,9 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 }
 
 $total = cartTotal($conn, $userId);
-$itemCount = array_sum(array_map(fn($item) => (int) $item["quantity"], $items));
+$itemCount = array_sum(array_map(function ($item) {
+    return (int) $item["quantity"];
+}, $items));
 $highestStockPressure = 0;
 foreach ($items as $item) {
     $highestStockPressure = max($highestStockPressure, (int) $item["stock_quantity"] > 0 ? ((int) $item["quantity"] / (int) $item["stock_quantity"]) : 1);
@@ -104,12 +111,27 @@ require __DIR__ . "/header.php";
                 <button class="button secondary" type="button" id="useProfileAddress">Use Profile Address</button>
             <?php endif; ?>
 
-            <label for="payment_method">Payment Method</label>
-            <select id="payment_method" name="payment_method" required>
-                <option value="Simulated Card" <?php echo $paymentMethod === "Simulated Card" ? "selected" : ""; ?>>Simulated Card</option>
-                <option value="Cash on Delivery" <?php echo $paymentMethod === "Cash on Delivery" ? "selected" : ""; ?>>Cash on Delivery</option>
-                <option value="Bank Transfer" <?php echo $paymentMethod === "Bank Transfer" ? "selected" : ""; ?>>Bank Transfer</option>
-            </select>
+            <label id="payment-method-label" for="payment_method">Payment Method</label>
+            <div class="role-select checkout-payment-select" data-checkout-select>
+                <select id="payment_method" name="payment_method" aria-labelledby="payment-method-label" required>
+                    <?php foreach ($paymentOptions as $optionValue => $optionLabel): ?>
+                        <option value="<?php echo e($optionValue); ?>" <?php echo $paymentMethod === $optionValue ? "selected" : ""; ?>>
+                            <?php echo e($optionLabel); ?>
+                        </option>
+                    <?php endforeach; ?>
+                </select>
+                <button class="role-select-trigger" type="button" aria-haspopup="listbox" aria-expanded="false" aria-labelledby="payment-method-label payment-method-select-value">
+                    <strong id="payment-method-select-value"><?php echo e($paymentOptions[$paymentMethod] ?? $paymentOptions["Simulated Card"]); ?></strong>
+                    <span class="role-select-chevron" aria-hidden="true"></span>
+                </button>
+                <div class="role-select-menu" role="listbox" aria-labelledby="payment-method-label" hidden>
+                    <?php foreach ($paymentOptions as $optionValue => $optionLabel): ?>
+                        <button type="button" class="role-select-option" role="option" data-select-value="<?php echo e($optionValue); ?>" aria-selected="<?php echo $paymentMethod === $optionValue ? "true" : "false"; ?>">
+                            <?php echo e($optionLabel); ?>
+                        </button>
+                    <?php endforeach; ?>
+                </div>
+            </div>
             <div class="buyer-payment-info" id="paymentInfo">Simulated card keeps the demo flow instant and creates an order after confirmation.</div>
 
             <button type="submit">Continue to Payment</button>
@@ -134,6 +156,115 @@ require __DIR__ . "/header.php";
             address.focus();
         });
     }
+
+    document.querySelectorAll("[data-checkout-select]").forEach((selectRoot) => {
+        const nativeSelect = selectRoot.querySelector("select");
+        const trigger = selectRoot.querySelector(".role-select-trigger");
+        const menu = selectRoot.querySelector(".role-select-menu");
+        const value = selectRoot.querySelector(".role-select-trigger strong");
+        const options = Array.from(selectRoot.querySelectorAll(".role-select-option"));
+
+        if (!nativeSelect || !trigger || !menu || !value || options.length === 0) {
+            return;
+        }
+
+        const syncSelect = (selectedValue) => {
+            const selectedOption = options.find((option) => option.dataset.selectValue === selectedValue);
+
+            if (!selectedOption) {
+                return;
+            }
+
+            nativeSelect.value = selectedValue;
+            value.textContent = selectedOption.textContent.trim();
+            options.forEach((option) => {
+                option.setAttribute("aria-selected", option === selectedOption ? "true" : "false");
+            });
+        };
+
+        const openMenu = () => {
+            menu.hidden = false;
+            trigger.setAttribute("aria-expanded", "true");
+            selectRoot.classList.add("is-open");
+
+            const selectedOption = options.find((option) => option.getAttribute("aria-selected") === "true");
+            (selectedOption || options[0]).focus();
+        };
+
+        const closeMenu = (restoreFocus) => {
+            menu.hidden = true;
+            trigger.setAttribute("aria-expanded", "false");
+            selectRoot.classList.remove("is-open");
+
+            if (restoreFocus) {
+                trigger.focus();
+            }
+        };
+
+        selectRoot.classList.add("custom-select-ready");
+        nativeSelect.tabIndex = -1;
+        nativeSelect.setAttribute("aria-hidden", "true");
+        syncSelect(nativeSelect.value);
+
+        trigger.addEventListener("click", () => {
+            if (menu.hidden) {
+                openMenu();
+            } else {
+                closeMenu(false);
+            }
+        });
+
+        trigger.addEventListener("keydown", (event) => {
+            if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+                event.preventDefault();
+                openMenu();
+            }
+        });
+
+        options.forEach((option, index) => {
+            option.addEventListener("click", () => {
+                syncSelect(option.dataset.selectValue);
+                nativeSelect.dispatchEvent(new Event("change", { bubbles: true }));
+                closeMenu(true);
+            });
+
+            option.addEventListener("keydown", (event) => {
+                let nextIndex = index;
+
+                if (event.key === "ArrowDown") {
+                    nextIndex = (index + 1) % options.length;
+                } else if (event.key === "ArrowUp") {
+                    nextIndex = (index - 1 + options.length) % options.length;
+                } else if (event.key === "Home") {
+                    nextIndex = 0;
+                } else if (event.key === "End") {
+                    nextIndex = options.length - 1;
+                } else if (event.key === "Escape") {
+                    event.preventDefault();
+                    closeMenu(true);
+                    return;
+                } else if (event.key === "Tab") {
+                    closeMenu(false);
+                    return;
+                } else {
+                    return;
+                }
+
+                event.preventDefault();
+                options[nextIndex].focus();
+            });
+        });
+
+        nativeSelect.addEventListener("change", () => {
+            syncSelect(nativeSelect.value);
+        });
+
+        document.addEventListener("click", (event) => {
+            if (!menu.hidden && !selectRoot.contains(event.target)) {
+                closeMenu(false);
+            }
+        });
+    });
 
     if (payment && info) {
         payment.addEventListener("change", () => {
