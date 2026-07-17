@@ -40,7 +40,8 @@ if ($useSellerShell) {
         <script>
         (() => {
             const key = `healthnest:seller-scroll:${window.location.pathname}`;
-            if (sessionStorage.getItem(key) !== null) {
+            const forceTopKey = `healthnest:seller-force-top:${window.location.pathname}`;
+            if (sessionStorage.getItem(key) !== null && sessionStorage.getItem(forceTopKey) === null) {
                 document.documentElement.classList.add("seller-restoring-scroll");
             }
             if ("scrollRestoration" in history) {
