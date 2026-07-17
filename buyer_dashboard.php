@@ -12,7 +12,13 @@ $userId = sessionUserId();
 $user = currentUser($conn);
 $cartCount = cartCount($conn, $userId);
 $cartTotal = cartTotal($conn, $userId);
-$featuredProducts = array_slice(getFeaturedProducts($conn), 0, 3);
+$featuredProducts = array_slice(getProducts($conn), 0, 3);
+foreach (getProducts($conn) as $catalogProduct) {
+    if (strcasecmp((string) $catalogProduct["product_name"], "Ipamorelin") === 0) {
+        $featuredProducts[2] = $catalogProduct;
+        break;
+    }
+}
 $categories = getCategories($conn);
 
 $orderStatsResult = mysqli_query($conn, "
@@ -44,7 +50,7 @@ $ordersResult = mysqli_query($conn, "
     FROM orders
     WHERE user_id = " . (int) $userId . "
     ORDER BY order_id DESC
-    LIMIT 5
+    LIMIT 1
 ");
 
 $pageTitle = "Buyer Dashboard";
@@ -109,7 +115,7 @@ require __DIR__ . "/header.php";
             <div class="product-grid buyer-product-grid">
                 <?php foreach ($featuredProducts as $product): ?>
                     <?php $imagePath = "images/products/" . productImageFilename($product["image"] ?? ""); ?>
-                    <article class="buyer-product-card">
+                    <article class="card product-card buyer-product-card">
                         <div class="product-image-wrap">
                             <img src="<?php echo e($imagePath); ?>" alt="<?php echo e($product["product_name"]); ?>" class="product-image" onerror="this.closest('.product-image-wrap').classList.add('image-missing'); this.remove();">
                         </div>
