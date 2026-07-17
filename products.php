@@ -202,12 +202,12 @@ require __DIR__ . "/header.php";
         </div>
     </section>
     <?php if (count($products) > 0): ?>
-        <div class="product-grid">
+        <div class="product-grid buyer-product-grid">
             <?php foreach ($products as $product): ?>
                 <?php 
                 $imagePath = "images/products/" . productImageFilename($product["image"] ?? "");
                 ?>
-                <article class="card product-card buyer-product-card" data-product-card data-name="<?php echo e($product["product_name"]); ?>" data-category="<?php echo e($product["category_name"] ?? "Uncategorized"); ?>" data-price="<?php echo e(formatPrice($product["price"])); ?>" data-stock="<?php echo (int) $product["stock_quantity"]; ?>">
+                <article class="card product-card buyer-product-card" data-product-card data-product-url="product.php?id=<?php echo (int) $product["product_id"]; ?>" data-name="<?php echo e($product["product_name"]); ?>" data-category="<?php echo e($product["category_name"] ?? "Uncategorized"); ?>" data-price="<?php echo e(formatPrice($product["price"])); ?>" data-stock="<?php echo (int) $product["stock_quantity"]; ?>">
                     <div class="product-image-wrap">
                         <img src="<?php echo htmlspecialchars($imagePath); ?>" 
                              alt="<?php echo e($product["product_name"]); ?>" 
@@ -370,6 +370,24 @@ require __DIR__ . "/header.php";
     const list = document.getElementById("buyerCompareList");
     const clear = document.getElementById("buyerCompareClear");
     const checks = Array.from(document.querySelectorAll("[data-compare-product]"));
+
+    document.querySelectorAll("[data-product-card][data-product-url]").forEach((card) => {
+        card.addEventListener("click", (event) => {
+            if (event.target.closest("a, button, input, label, form")) {
+                return;
+            }
+
+            window.location.href = card.dataset.productUrl;
+        });
+
+        card.setAttribute("tabindex", "0");
+        card.setAttribute("role", "link");
+        card.addEventListener("keydown", (event) => {
+            if (event.key === "Enter") {
+                window.location.href = card.dataset.productUrl;
+            }
+        });
+    });
 
     if (!tray || !list || checks.length === 0) {
         return;
